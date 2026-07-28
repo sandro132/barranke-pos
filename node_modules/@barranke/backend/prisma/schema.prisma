@@ -1,0 +1,274 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  // SQLite en desarrollo. En producción, cambiar a "postgresql" y actualizar DATABASE_URL.
+  // NOTA IMPORTANTE: SQLite no soporta enums nativos de Prisma, por eso los campos
+  // de tipo "enum" de negocio se guardan como String aquí. La validez de esos valores
+  // se garantiza con los enums de TypeScript en packages/shared y los schemas de Zod
+  // en cada módulo del backend (nunca se guarda un valor arbitrario).
+  // Si en el futuro se migra a PostgreSQL, estos campos String pueden convertirse
+  // a enums nativos de Prisma sin cambiar la lógica de negocio.
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// =========================
+// USUARIOS Y AUTH
+// =========================
+
+/// Valores válidos: ADMIN | MESERO | COCINA | BAR
+model Usuario {
+  id        String   @id @default(cuid())
+  nombre    String
+  email     String   @unique
+  password  String
+  rol       String   @default("MESERO")
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  pedidos         Pedido[]
+  movimientosCaja MovimientoCaja[]
+  ventas          Venta[]
+}
+
+// =========================
+// ESPACIOS (MESAS Y BARRAS)
+// =========================
+
+model Espacio {
+  id     String @id @default(cuid())
+  nombre String
+  /// Valores válidos: MESA | BARRA
+  tipo   String
+  /// Valores válidos: LIBRE | OCUPADA | RESERVADA
+  estado       String    @default("LIBRE")
+  capacidad    Int?
+  horaApertura DateTime?
+  personas     Int?
+
+  pedidos Pedido[]
+  ventas  Venta[]
+
+  // preparado para "unir mesas" a futuro
+  espacioPadreId String?
+  espacioPadre   Espacio?  @relation("EspaciosUnidos", fields: [espacioPadreId], references: [id])
+  espaciosHijos  Espacio[] @relation("EspaciosUnidos")
+}
+
+// =========================
+// PRODUCTOS
+// =========================
+
+model Producto {
+  id String @id @default(cuid())
+
+  nombre String
+  /// Valores válidos: CERVEZA | LICOR | COMIDA | COCTEL | OTRO
+  categoria String
+  // Decimal para dinero en COP. En la práctica se maneja sin decimales (ej. 8000.00 = $8.000)
+  precio        Decimal
+  costo         Decimal
+  stock         Decimal @default(0) // relevante solo si no tiene receta (ej. cerveza)
+  unidad        String
+  imagenUrl     String?
+  activo        Boolean @default(true)
+  codigoInterno String  @unique // SKU autogenerado, ej. CERV-001
+
+  receta      RecetaItem[]
+  itemsPedido ItemPedido[]
+  movimientos MovimientoInventario[]
+  itemsCompra ItemCompra[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// =========================
+// INGREDIENTES Y RECETAS
+// =========================
+
+model Ingrediente {
+  id     String @id @default(cuid())
+  nombre String
+  /// Valores válidos: UNIDAD | GRAMO | KILOGRAMO | MILILITRO | LITRO | ONZA | BOTELLA
+  unidad        String
+  stock         Decimal @default(0)
+  stockMinimo   Decimal @default(0)
+  costoUnitario Decimal @default(0)
+
+  usadoEnRecetas RecetaItem[]
+  movimientos    MovimientoInventario[]
+  itemsCompra    ItemCompra[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model RecetaItem {
+  id            String      @id @default(cuid())
+  productoId    String
+  producto      Producto    @relation(fields: [productoId], references: [id])
+  ingredienteId String
+  ingrediente   Ingrediente @relation(fields: [ingredienteId], references: [id])
+  cantidad      Decimal
+
+  @@unique([productoId, ingredienteId])
+}
+
+// =========================
+// INVENTARIO (MOVIMIENTOS)
+// =========================
+
+model MovimientoInventario {
+  id String @id @default(cuid())
+
+  /// Valores válidos: ENTRADA | SALIDA | AJUSTE | VENTA | COMPRA
+  tipo     String
+  cantidad Decimal
+  motivo   String?
+  fecha    DateTime @default(now())
+
+  productoId    String?
+  producto      Producto?    @relation(fields: [productoId], references: [id])
+  ingredienteId String?
+  ingrediente   Ingrediente? @relation(fields: [ingredienteId], references: [id])
+}
+
+// =========================
+// PEDIDOS
+// =========================
+
+model Pedido {
+  id        String   @id @default(cuid())
+  espacioId String
+  espacio   Espacio  @relation(fields: [espacioId], references: [id])
+  usuarioId String
+  usuario   Usuario  @relation(fields: [usuarioId], references: [id])
+  /// Valores válidos: PENDIENTE | PREPARANDO | LISTO | ENTREGADO | CANCELADO
+  estado    String   @default("PENDIENTE")
+  createdAt DateTime @default(now())
+
+  items ItemPedido[]
+}
+
+model ItemPedido {
+  id             String   @id @default(cuid())
+  pedidoId       String
+  pedido         Pedido   @relation(fields: [pedidoId], references: [id])
+  productoId     String
+  producto       Producto @relation(fields: [productoId], references: [id])
+  cantidad       Int
+  precioUnitario Decimal // snapshot del precio al momento de vender
+  /// Valores válidos: COCINA | BARRA | NINGUNA
+  areaPreparacion String @default("NINGUNA")
+  /// Valores válidos: PENDIENTE | PREPARANDO | LISTO | ENTREGADO | CANCELADO
+  estado String  @default("PENDIENTE")
+  notas  String?
+}
+
+// =========================
+// VENTAS (CIERRE DE MESA/BARRA)
+// =========================
+
+model Venta {
+  id        String  @id @default(cuid())
+  espacioId String
+  espacio   Espacio @relation(fields: [espacioId], references: [id])
+  usuarioId String
+  usuario   Usuario @relation(fields: [usuarioId], references: [id])
+  subtotal  Decimal
+  descuento Decimal @default(0)
+  total     Decimal
+  /// Valores válidos: EFECTIVO | TRANSFERENCIA_BANCOLOMBIA | NEQUI | DAVIPLATA | TARJETA | OTRO
+  metodoPago String
+  fecha      DateTime @default(now())
+
+  cajaId String?
+  caja   Caja?   @relation(fields: [cajaId], references: [id])
+}
+
+// =========================
+// CAJA
+// =========================
+
+model Caja {
+  id            String    @id @default(cuid())
+  fechaApertura DateTime  @default(now())
+  fechaCierre   DateTime?
+  montoInicial  Decimal
+  montoFinal    Decimal?
+  abierta       Boolean   @default(true)
+
+  movimientos MovimientoCaja[]
+  ventas      Venta[]
+}
+
+model MovimientoCaja {
+  id     String @id @default(cuid())
+  cajaId String
+  caja   Caja   @relation(fields: [cajaId], references: [id])
+  /// Valores válidos: APERTURA | CIERRE | INGRESO | GASTO | VENTA
+  tipo        String
+  monto       Decimal
+  descripcion String?
+  usuarioId   String
+  usuario     Usuario  @relation(fields: [usuarioId], references: [id])
+  fecha       DateTime @default(now())
+}
+
+// =========================
+// COMPRAS
+// =========================
+
+model Compra {
+  id        String   @id @default(cuid())
+  proveedor String
+  factura   String?
+  fecha     DateTime @default(now())
+  total     Decimal
+
+  items ItemCompra[]
+}
+
+model ItemCompra {
+  id            String       @id @default(cuid())
+  compraId      String
+  compra        Compra       @relation(fields: [compraId], references: [id])
+  productoId    String?
+  producto      Producto?    @relation(fields: [productoId], references: [id])
+  ingredienteId String?
+  ingrediente   Ingrediente? @relation(fields: [ingredienteId], references: [id])
+  cantidad      Decimal
+  costoUnitario Decimal
+}
+
+// =========================
+// PROMOCIONES (preparado, no activo aún)
+// =========================
+
+model Promocion {
+  id String @id @default(cuid())
+
+  nombre String
+  /// Valores válidos: HAPPY_HOUR | DOS_POR_UNO | COMBO | DESCUENTO
+  tipo       String
+  activa     Boolean @default(false)
+  horaInicio String?
+  horaFin    String?
+  diasSemana String?
+  valor      Decimal?
+}
+
+// =========================
+// CLIENTES (preparado, no activo aún)
+// =========================
+
+model Cliente {
+  id         String    @id @default(cuid())
+  nombre     String
+  telefono   String?   @unique
+  cumpleanos DateTime?
+  createdAt  DateTime  @default(now())
+}
