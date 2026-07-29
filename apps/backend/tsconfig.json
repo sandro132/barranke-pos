@@ -5,17 +5,12 @@
     "moduleResolution": "node",
     "lib": ["ES2022"],
     "outDir": "dist",
-    "rootDir": "src",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
-    "declaration": false,
-    "baseUrl": ".",
-    "paths": {
-      "@barranke/shared": ["../../packages/shared/src/types/index.ts"]
-    }
+    "declaration": false
   },
   "include": ["src"]
 }
