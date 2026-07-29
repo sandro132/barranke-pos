@@ -1,14 +1,16 @@
 import express from "express";
 import cors from "cors";
 import http from "http";
-import { Server as SocketIOServer } from "socket.io";
 import { env } from "./config/env";
 import { errorHandler } from "./middlewares/errorHandler";
+import { initSocket } from "./sockets/socketServer";
 import authRoutes from "./modules/auth/auth.routes";
 import productoRoutes from "./modules/productos/producto.routes";
 import ingredienteRoutes from "./modules/ingredientes/ingrediente.routes";
 import recetaRoutes from "./modules/recetas/receta.routes";
 import inventarioRoutes from "./modules/inventario/inventario.routes";
+import espacioRoutes from "./modules/espacios/espacio.routes";
+import pedidoRoutes from "./modules/pedidos/pedido.routes";
 
 const app = express();
 
@@ -20,29 +22,23 @@ app.get("/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
-// Rutas por módulo. Cada módulo nuevo (mesas, pedidos...) se registra aquí.
+// Rutas por módulo. Cada módulo nuevo se registra aquí.
 app.use("/api/auth", authRoutes);
 app.use("/api/productos", productoRoutes);
 app.use("/api/productos/:productoId/receta", recetaRoutes);
 app.use("/api/ingredientes", ingredienteRoutes);
 app.use("/api/inventario", inventarioRoutes);
+app.use("/api/espacios", espacioRoutes);
+app.use("/api/pedidos", pedidoRoutes);
 
 // El error handler siempre va después de todas las rutas.
 app.use(errorHandler);
 
 const httpServer = http.createServer(app);
 
-export const io = new SocketIOServer(httpServer, {
-  cors: { origin: env.corsOrigin, credentials: true },
-});
-
-io.on("connection", (socket) => {
-  console.log(`[socket] cliente conectado: ${socket.id}`);
-
-  socket.on("disconnect", () => {
-    console.log(`[socket] cliente desconectado: ${socket.id}`);
-  });
-});
+// Inicializa Socket.IO. Cualquier service (ej. pedido.service) puede emitir
+// eventos en tiempo real importando getIO() desde ./sockets/socketServer.
+initSocket(httpServer);
 
 httpServer.listen(env.port, () => {
   console.log(`🎸 Barranke POS backend corriendo en http://localhost:${env.port}`);

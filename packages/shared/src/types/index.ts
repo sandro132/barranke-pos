@@ -113,3 +113,11 @@ export interface LoginResponseDTO {
   token: string;
   usuario: UsuarioPublicoDTO;
 }
+
+// ---- Eventos de Socket.IO (mismos nombres en backend y frontend) ----
+
+export const SOCKET_EVENTS = {
+  PEDIDO_NUEVO: "pedido:nuevo",
+  PEDIDO_ITEM_ACTUALIZADO: "pedido:item-actualizado",
+  ESPACIO_ACTUALIZADO: "espacio:actualizado",
+} as const;

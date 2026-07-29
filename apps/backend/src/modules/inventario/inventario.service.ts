@@ -18,31 +18,43 @@ import { TipoMovimientoInventario } from "@barranke/shared";
  * o no se descuenta nada (para nunca dejar el inventario en un estado a medias
  * si algo falla a mitad de camino, ej. un ingrediente sin stock suficiente).
  *
- * Esta función será usada por el módulo de Pedidos en la Fase 3 al cerrar una venta.
- * Por ahora se expone también vía POST /api/inventario/simular-venta para poder
- * probarla de forma aislada.
+ * Esta función se usa en dos lugares:
+ *  1. El módulo de Pedidos (Fase 3), dentro de su propia transacción al crear un pedido.
+ *  2. El endpoint POST /api/inventario/simular-venta, para probarla de forma aislada.
+ *
+ * Por eso el descuento en sí vive en `ejecutarDescuentoVenta`, que recibe el cliente
+ * de transacción como parámetro (`tx`) en vez de crear el suyo propio. Así, cuando
+ * Pedidos la llama, el descuento de inventario y la creación del pedido quedan
+ * dentro de LA MISMA transacción: si algo falla, no se crea el pedido a medias
+ * con el inventario ya descontado.
  */
 export async function descontarInventarioPorVenta(productoId: string, cantidad: number) {
-  return prisma.$transaction(async (tx) => {
-    const producto = await tx.producto.findUnique({
-      where: { id: productoId },
-      include: { receta: { include: { ingrediente: true } } },
-    });
+  return prisma.$transaction((tx) => ejecutarDescuentoVenta(tx, productoId, cantidad));
+}
 
-    if (!producto) {
-      throw new AppError("Producto no encontrado", 404);
-    }
-
-    if (!producto.activo) {
-      throw new AppError("El producto está inactivo, no se puede vender", 400);
-    }
-
-    if (producto.receta.length > 0) {
-      return descontarPorReceta(tx, producto, cantidad);
-    }
-
-    return descontarStockDirecto(tx, producto, cantidad);
+export async function ejecutarDescuentoVenta(
+  tx: Prisma.TransactionClient,
+  productoId: string,
+  cantidad: number
+) {
+  const producto = await tx.producto.findUnique({
+    where: { id: productoId },
+    include: { receta: { include: { ingrediente: true } } },
   });
+
+  if (!producto) {
+    throw new AppError("Producto no encontrado", 404);
+  }
+
+  if (!producto.activo) {
+    throw new AppError("El producto está inactivo, no se puede vender", 400);
+  }
+
+  if (producto.receta.length > 0) {
+    return descontarPorReceta(tx, producto, cantidad);
+  }
+
+  return descontarStockDirecto(tx, producto, cantidad);
 }
 
 async function descontarPorReceta(
