@@ -1,4 +1,4 @@
-import { Pedido, ItemPedido } from "@prisma/client";
+import { Pedido, ItemPedido, Prisma } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 import { AppError } from "../../middlewares/errorHandler";
 import { EstadoEspacio, EstadoPedido, TipoEspacio } from "@barranke/shared";
@@ -11,6 +11,32 @@ import {
 } from "./espacio.schema";
 
 type PedidoConItems = Pedido & { items: ItemPedido[] };
+
+/**
+ * Suma los ítems de los pedidos de la sesión actual de un espacio (desde que se
+ * abrió, sin contar cancelados). Es la ÚNICA fuente de verdad para "cuánto se
+ * debe": la usan tanto la vista de detalle (para mostrar el total en pantalla)
+ * como el cierre de mesa (para generar la Venta real). Si alguna vez cambia
+ * cómo se calcula el consumo, solo hay que tocarlo aquí.
+ */
+async function calcularTotalConsumido(espacioId: string, horaApertura: Date): Promise<number> {
+  const pedidos: PedidoConItems[] = await prisma.pedido.findMany({
+    where: {
+      espacioId,
+      createdAt: { gte: horaApertura },
+      estado: { not: EstadoPedido.CANCELADO },
+    },
+    include: { items: true },
+  });
+
+  return pedidos.reduce((total: number, pedido: PedidoConItems) => {
+    const totalPedido = pedido.items.reduce(
+      (sub: number, item: ItemPedido) => sub + Number(item.precioUnitario) * item.cantidad,
+      0
+    );
+    return total + totalPedido;
+  }, 0);
+}
 
 /**
  * Calcula el total consumido y el tiempo abierta de un espacio ocupado,
@@ -26,22 +52,7 @@ async function conDetalleDeConsumo(espacio: {
     return { ...espacio, totalConsumido: 0, tiempoAbiertaMinutos: 0 };
   }
 
-  const pedidos: PedidoConItems[] = await prisma.pedido.findMany({
-    where: {
-      espacioId: espacio.id,
-      createdAt: { gte: espacio.horaApertura },
-      estado: { not: EstadoPedido.CANCELADO },
-    },
-    include: { items: true },
-  });
-
-  const totalConsumido = pedidos.reduce((total: number, pedido: PedidoConItems) => {
-    const totalPedido = pedido.items.reduce(
-      (sub: number, item: ItemPedido) => sub + Number(item.precioUnitario) * item.cantidad,
-      0
-    );
-    return total + totalPedido;
-  }, 0);
+  const totalConsumido = await calcularTotalConsumido(espacio.id, espacio.horaApertura);
 
   const tiempoAbiertaMinutos = Math.floor(
     (Date.now() - espacio.horaApertura.getTime()) / 60000
@@ -110,7 +121,14 @@ export async function abrirEspacio(id: string, data: AbrirEspacioInput) {
   return actualizado;
 }
 
-export async function cerrarEspacio(id: string) {
+/**
+ * Cierra un espacio: si tuvo consumo, genera una Venta real con el método de
+ * pago indicado. Si hay una caja abierta en este momento, también registra el
+ * movimiento de esa venta en la caja (para que el arqueo del día cuadre).
+ * Si el espacio se abrió por error y no tuvo consumo, simplemente se libera
+ * sin generar una venta de $0.
+ */
+export async function cerrarEspacio(id: string, usuarioId: string, metodoPago?: string) {
   const espacio = await prisma.espacio.findUnique({ where: { id } });
 
   if (!espacio) {
@@ -121,18 +139,58 @@ export async function cerrarEspacio(id: string) {
     throw new AppError("Este espacio no está ocupado", 400);
   }
 
-  // NOTA: el cierre de cuenta (generar Venta y registrar en Caja) se implementa
-  // en la Fase 8. Por ahora cerrar el espacio solo lo libera para la siguiente mesa.
-  const actualizado = await prisma.espacio.update({
-    where: { id },
-    data: {
-      estado: EstadoEspacio.LIBRE,
-      horaApertura: null,
-      descripcion: null,
-    },
+  const total = espacio.horaApertura
+    ? await calcularTotalConsumido(espacio.id, espacio.horaApertura)
+    : 0;
+
+  if (total > 0 && !metodoPago) {
+    throw new AppError("Selecciona un método de pago para cerrar la cuenta", 400);
+  }
+
+  const { espacioActualizado, venta } = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    let venta = null;
+
+    if (total > 0) {
+      const cajaAbierta = await tx.caja.findFirst({ where: { abierta: true } });
+
+      venta = await tx.venta.create({
+        data: {
+          espacioId: espacio.id,
+          usuarioId,
+          subtotal: total,
+          descuento: 0,
+          total,
+          metodoPago: metodoPago!,
+          cajaId: cajaAbierta?.id ?? null,
+        },
+      });
+
+      if (cajaAbierta) {
+        await tx.movimientoCaja.create({
+          data: {
+            cajaId: cajaAbierta.id,
+            tipo: "VENTA",
+            monto: total,
+            descripcion: `Venta — ${espacio.nombre}`,
+            usuarioId,
+          },
+        });
+      }
+    }
+
+    const espacioActualizado = await tx.espacio.update({
+      where: { id },
+      data: {
+        estado: EstadoEspacio.LIBRE,
+        horaApertura: null,
+        descripcion: null,
+      },
+    });
+
+    return { espacioActualizado, venta };
   });
 
-  getIO().emit(SOCKET_EVENTS.ESPACIO_ACTUALIZADO, actualizado);
+  getIO().emit(SOCKET_EVENTS.ESPACIO_ACTUALIZADO, espacioActualizado);
 
-  return actualizado;
+  return { espacio: espacioActualizado, venta };
 }

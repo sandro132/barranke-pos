@@ -3,6 +3,8 @@ import { Card } from "../../components/ui/Card";
 import { listarEspacios } from "../../services/espacioService";
 import { listarIngredientes } from "../../services/ingredienteService";
 import { listarParaCocina, listarParaBarra } from "../../services/pedidoService";
+import { obtenerCajaActual } from "../../services/cajaService";
+import { formatoMoneda } from "../../utils/format";
 
 function StatCard({ label, value, hint }: { label: string; value: string | number; hint?: string }) {
   return (
@@ -22,6 +24,7 @@ export function DashboardPage() {
   });
   const cocina = useQuery({ queryKey: ["pedidos", "cocina"], queryFn: listarParaCocina });
   const barra = useQuery({ queryKey: ["pedidos", "barra"], queryFn: listarParaBarra });
+  const caja = useQuery({ queryKey: ["caja", "actual"], queryFn: obtenerCajaActual });
 
   const mesasOcupadas = espacios.data?.filter((e) => e.estado === "OCUPADA").length ?? 0;
   const totalEspacios = espacios.data?.length ?? 0;
@@ -50,7 +53,11 @@ export function DashboardPage() {
           label="Ingredientes con stock bajo"
           value={stockBajo.isLoading ? "—" : stockBajo.data?.length ?? 0}
         />
-        <StatCard label="Ventas del día" value="—" hint="Disponible en Fase 8 (Caja)" />
+        <StatCard
+          label="Ventas del día"
+          value={caja.isLoading ? "—" : caja.data ? formatoMoneda(caja.data.totalVentas) : "$0"}
+          hint={caja.data ? undefined : "Caja cerrada"}
+        />
       </div>
 
       {stockBajo.data && stockBajo.data.length > 0 && (

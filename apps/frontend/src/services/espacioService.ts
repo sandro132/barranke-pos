@@ -27,6 +27,9 @@ export function abrirEspacio(id: string, descripcion?: string) {
   });
 }
 
-export function cerrarEspacio(id: string) {
-  return apiRequest<EspacioDTO>(`/espacios/${id}/cerrar`, { method: "POST" });
+export function cerrarEspacio(id: string, metodoPago?: string) {
+  return apiRequest<{ espacio: EspacioDTO; venta: { id: string; total: number } | null }>(
+    `/espacios/${id}/cerrar`,
+    { method: "POST", body: { metodoPago } }
+  );
 }

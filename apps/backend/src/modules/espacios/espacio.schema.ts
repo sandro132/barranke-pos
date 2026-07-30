@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { TipoEspacio } from "@barranke/shared";
+import { MetodoPago, TipoEspacio } from "@barranke/shared";
 
 export const crearEspacioSchema = z.object({
   nombre: z.string().min(1, "El nombre es requerido"),
@@ -14,6 +14,13 @@ export const actualizarEspacioSchema = z.object({
 
 export const abrirEspacioSchema = z.object({
   descripcion: z.string().max(200, "Máximo 200 caracteres").optional(),
+});
+
+// metodoPago es opcional aquí porque si la mesa no tuvo consumo (se abrió por
+// error), se puede cerrar sin pagar nada. El service exige el dato solo si hay
+// un total mayor a 0.
+export const cerrarEspacioSchema = z.object({
+  metodoPago: z.nativeEnum(MetodoPago).optional(),
 });
 
 export const listarEspaciosQuerySchema = z.object({

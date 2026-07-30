@@ -7,12 +7,10 @@ const NAV_ITEMS = [
   { to: "/mesas", label: "Mesas y Barras" },
   { to: "/cocina", label: "Cocina" },
   { to: "/barra", label: "Barra" },
+  { to: "/caja", label: "Caja" },
 ];
 
-const PROXIMAMENTE = [
-  { label: "Caja", fase: "Fase 8" },
-  { label: "Reportes", fase: "Fase 11" },
-];
+const PROXIMAMENTE = [{ label: "Reportes", fase: "Fase 11" }];
 
 export function AppLayout() {
   useSocketConnection();

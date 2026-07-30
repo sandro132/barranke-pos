@@ -11,6 +11,7 @@ import recetaRoutes from "./modules/recetas/receta.routes";
 import inventarioRoutes from "./modules/inventario/inventario.routes";
 import espacioRoutes from "./modules/espacios/espacio.routes";
 import pedidoRoutes from "./modules/pedidos/pedido.routes";
+import cajaRoutes from "./modules/caja/caja.routes";
 
 const app = express();
 
@@ -30,6 +31,7 @@ app.use("/api/ingredientes", ingredienteRoutes);
 app.use("/api/inventario", inventarioRoutes);
 app.use("/api/espacios", espacioRoutes);
 app.use("/api/pedidos", pedidoRoutes);
+app.use("/api/caja", cajaRoutes);
 
 // El error handler siempre va después de todas las rutas.
 app.use(errorHandler);

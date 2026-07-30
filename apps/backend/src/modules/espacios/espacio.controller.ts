@@ -1,9 +1,10 @@
 import { Request, Response } from "express";
-import { asyncHandler } from "../../middlewares/errorHandler";
+import { asyncHandler, AppError } from "../../middlewares/errorHandler";
 import * as espacioService from "./espacio.service";
 import {
   abrirEspacioSchema,
   actualizarEspacioSchema,
+  cerrarEspacioSchema,
   crearEspacioSchema,
   listarEspaciosQuerySchema,
 } from "./espacio.schema";
@@ -38,6 +39,8 @@ export const abrirHandler = asyncHandler(async (req: Request, res: Response) => 
 });
 
 export const cerrarHandler = asyncHandler(async (req: Request, res: Response) => {
-  const espacio = await espacioService.cerrarEspacio(req.params.id);
-  res.json(espacio);
+  if (!req.user) throw new AppError("No autenticado", 401);
+  const { metodoPago } = cerrarEspacioSchema.parse(req.body);
+  const resultado = await espacioService.cerrarEspacio(req.params.id, req.user.userId, metodoPago);
+  res.json(resultado);
 });
