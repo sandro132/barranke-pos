@@ -2,10 +2,12 @@ import { NavLink, Outlet } from "react-router-dom";
 import { useAuthStore } from "../stores/authStore";
 import { useSocketConnection } from "../hooks/useSocketConnection";
 
-const NAV_ITEMS = [{ to: "/", label: "Dashboard", end: true }];
+const NAV_ITEMS = [
+  { to: "/", label: "Dashboard", end: true },
+  { to: "/mesas", label: "Mesas y Barras" },
+];
 
 const PROXIMAMENTE = [
-  { label: "Mesas y Barras", fase: "Fase 5" },
   { label: "Cocina", fase: "Fase 7" },
   { label: "Barra", fase: "Fase 7" },
   { label: "Caja", fase: "Fase 8" },

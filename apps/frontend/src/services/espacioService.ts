@@ -16,6 +16,10 @@ export function listarEspacios() {
   return apiRequest<EspacioDTO[]>("/espacios");
 }
 
+export function obtenerEspacio(id: string) {
+  return apiRequest<EspacioDTO>(`/espacios/${id}`);
+}
+
 export function abrirEspacio(id: string, personas?: number) {
   return apiRequest<EspacioDTO>(`/espacios/${id}/abrir`, {
     method: "POST",

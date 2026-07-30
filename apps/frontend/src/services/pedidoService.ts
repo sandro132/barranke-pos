@@ -14,6 +14,26 @@ export interface ItemPedidoDTO {
   pedido?: { id: string; espacio: { id: string; nombre: string } };
 }
 
+export interface PedidoDTO {
+  id: string;
+  espacioId: string;
+  usuarioId: string;
+  estado: "PENDIENTE" | "PREPARANDO" | "LISTO" | "ENTREGADO" | "CANCELADO";
+  createdAt: string;
+  usuario: { id: string; nombre: string };
+  items: ItemPedidoDTO[];
+}
+
+export function listarPorEspacio(espacioId: string) {
+  return apiRequest<PedidoDTO[]>(`/pedidos/espacio/${espacioId}`);
+}
+
+export function repetirUltimaRonda(espacioId: string) {
+  return apiRequest<PedidoDTO>(`/pedidos/espacio/${espacioId}/repetir-ultima-ronda`, {
+    method: "POST",
+  });
+}
+
 export function listarParaCocina() {
   return apiRequest<ItemPedidoDTO[]>("/pedidos/cocina");
 }
