@@ -13,7 +13,7 @@ export const actualizarEspacioSchema = z.object({
 });
 
 export const abrirEspacioSchema = z.object({
-  personas: z.number().int().positive().optional(),
+  descripcion: z.string().max(200, "Máximo 200 caracteres").optional(),
 });
 
 export const listarEspaciosQuerySchema = z.object({

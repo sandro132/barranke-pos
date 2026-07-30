@@ -28,7 +28,7 @@ function EspacioCard({ espacio, onClick }: { espacio: EspacioDTO; onClick: () =>
           <p className="text-sm text-ink mt-1">{formatoMoneda(espacio.totalConsumido)}</p>
           <p className="text-xs text-ink-muted mt-0.5">
             Abierta hace {espacio.tiempoAbiertaMinutos} min
-            {espacio.personas ? ` · ${espacio.personas} personas` : ""}
+            {espacio.descripcion ? ` · ${espacio.descripcion}` : ""}
           </p>
         </>
       ) : (
@@ -42,7 +42,7 @@ export function MesasPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [espacioParaAbrir, setEspacioParaAbrir] = useState<EspacioDTO | null>(null);
-  const [personas, setPersonas] = useState("");
+  const [descripcion, setDescripcion] = useState("");
 
   const { data: espacios, isLoading } = useQuery({ queryKey: ["espacios"], queryFn: listarEspacios });
 
@@ -60,12 +60,14 @@ export function MesasPage() {
   }, [queryClient]);
 
   const abrirMutation = useMutation({
-    mutationFn: (vars: { id: string; personas?: number }) =>
-      abrirEspacio(vars.id, vars.personas),
-    onSuccess: () => {
+    mutationFn: (vars: { id: string; descripcion?: string }) =>
+      abrirEspacio(vars.id, vars.descripcion),
+    onSuccess: (_data, vars) => {
       queryClient.invalidateQueries({ queryKey: ["espacios"] });
+      queryClient.invalidateQueries({ queryKey: ["espacio", vars.id] });
+      queryClient.invalidateQueries({ queryKey: ["pedidos", "espacio", vars.id] });
       setEspacioParaAbrir(null);
-      setPersonas("");
+      setDescripcion("");
     },
   });
 
@@ -81,7 +83,7 @@ export function MesasPage() {
     if (!espacioParaAbrir) return;
     abrirMutation.mutate({
       id: espacioParaAbrir.id,
-      personas: personas ? Number(personas) : undefined,
+      descripcion: descripcion.trim() ? descripcion.trim() : undefined,
     });
   }
 
@@ -132,12 +134,12 @@ export function MesasPage() {
       >
         <div className="flex flex-col gap-4">
           <Input
-            type="number"
-            min={1}
-            label="Cantidad de personas (opcional)"
-            placeholder="4"
-            value={personas}
-            onChange={(e) => setPersonas(e.target.value)}
+            type="text"
+            label="¿Quién está en la mesa? (opcional)"
+            placeholder="Ej: Juan, cliente frecuente"
+            value={descripcion}
+            onChange={(e) => setDescripcion(e.target.value)}
+            maxLength={200}
           />
           {abrirMutation.isError && (
             <p className="text-sm text-rock-bright">No se pudo abrir el espacio. Intenta de nuevo.</p>

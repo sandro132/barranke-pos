@@ -46,7 +46,9 @@ model Espacio {
   estado       String    @default("LIBRE")
   capacidad    Int?
   horaApertura DateTime?
-  personas     Int?
+  // Descripción libre de quién está en la mesa (ej. "Juan - cumpleaños",
+  // "grupo de 6, cliente frecuente"). Reemplaza el conteo simple de personas.
+  descripcion  String?
 
   pedidos Pedido[]
   ventas  Venta[]

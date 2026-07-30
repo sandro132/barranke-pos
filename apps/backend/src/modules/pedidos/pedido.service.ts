@@ -23,6 +23,38 @@ function determinarAreaPreparacion(categoria: string): string {
   return AreaPreparacion.NINGUNA;
 }
 
+/**
+ * Deriva el estado agregado de un pedido a partir del estado de todos sus ítems.
+ * Es una función pura (no toca la base de datos) para poder usarla tanto al
+ * crear el pedido (con los estados iniciales ya calculados en memoria) como
+ * al sincronizar después de que cocina/barra cambian un ítem.
+ */
+function calcularEstadoAgregado(estadosItems: string[]): string {
+  if (estadosItems.every((e) => e === EstadoPedido.CANCELADO)) {
+    return EstadoPedido.CANCELADO;
+  }
+  if (
+    estadosItems.every((e) =>
+      [EstadoPedido.ENTREGADO, EstadoPedido.CANCELADO].includes(e as EstadoPedido)
+    )
+  ) {
+    return EstadoPedido.ENTREGADO;
+  }
+  if (
+    estadosItems.every((e) =>
+      [EstadoPedido.LISTO, EstadoPedido.ENTREGADO, EstadoPedido.CANCELADO].includes(
+        e as EstadoPedido
+      )
+    )
+  ) {
+    return EstadoPedido.LISTO;
+  }
+  if (estadosItems.some((e) => e === EstadoPedido.PREPARANDO)) {
+    return EstadoPedido.PREPARANDO;
+  }
+  return EstadoPedido.PENDIENTE;
+}
+
 const INCLUDE_PEDIDO_COMPLETO = {
   espacio: true,
   usuario: { select: { id: true, nombre: true } },
@@ -65,24 +97,33 @@ export async function crearPedido(usuarioId: string, data: CrearPedidoInput) {
   }
 
   const pedidoId = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    // Calcula primero los estados iniciales de cada ítem (según si necesita
+    // preparación o no), para poder crear el pedido ya con su estado agregado
+    // correcto desde el principio — en vez de asumir PENDIENTE y esperar a que
+    // alguien en cocina/barra lo cambie (un pedido de solo cervezas nunca
+    // pasaría por ahí, y se quedaría en PENDIENTE para siempre).
+    const estadosIniciales = data.items.map((item) => {
+      const producto = productosPorId.get(item.productoId)!;
+      const areaPreparacion = determinarAreaPreparacion(producto.categoria);
+      const estado =
+        areaPreparacion === AreaPreparacion.NINGUNA
+          ? EstadoPedido.LISTO
+          : EstadoPedido.PENDIENTE;
+      return { areaPreparacion, estado };
+    });
+
     const pedido = await tx.pedido.create({
       data: {
         espacioId: data.espacioId,
         usuarioId,
-        estado: EstadoPedido.PENDIENTE,
+        estado: calcularEstadoAgregado(estadosIniciales.map((e) => e.estado)),
       },
     });
 
-    for (const item of data.items) {
+    for (let i = 0; i < data.items.length; i++) {
+      const item = data.items[i];
       const producto = productosPorId.get(item.productoId)!;
-      const areaPreparacion = determinarAreaPreparacion(producto.categoria);
-
-      // Si no requiere preparación (ej. cerveza), nace LISTO de una vez:
-      // no hay pantalla de cocina/barra que vaya a marcarlo, el mesero lo sirve directo.
-      const estadoInicial =
-        areaPreparacion === AreaPreparacion.NINGUNA
-          ? EstadoPedido.LISTO
-          : EstadoPedido.PENDIENTE;
+      const { areaPreparacion, estado } = estadosIniciales[i];
 
       await tx.itemPedido.create({
         data: {
@@ -91,7 +132,7 @@ export async function crearPedido(usuarioId: string, data: CrearPedidoInput) {
           cantidad: item.cantidad,
           precioUnitario: producto.precio,
           areaPreparacion,
-          estado: estadoInicial,
+          estado,
           notas: item.notas,
         },
       });
@@ -114,9 +155,25 @@ export async function crearPedido(usuarioId: string, data: CrearPedidoInput) {
   return pedidoCompleto;
 }
 
+/**
+ * Solo trae los pedidos de la SESIÓN ACTUAL de la mesa/barra (desde que se abrió
+ * esta vez), no todo su historial. Usa la misma regla que el cálculo de "total
+ * consumido" en espacio.service.ts, para que ambos siempre coincidan.
+ * Si el espacio está libre (sin sesión activa), no hay "pedidos de esta sesión".
+ */
 export async function listarPorEspacio(espacioId: string) {
+  const espacio = await prisma.espacio.findUnique({ where: { id: espacioId } });
+
+  if (!espacio) {
+    throw new AppError("Espacio no encontrado", 404);
+  }
+
+  if (espacio.estado !== EstadoEspacio.OCUPADA || !espacio.horaApertura) {
+    return [];
+  }
+
   return prisma.pedido.findMany({
-    where: { espacioId },
+    where: { espacioId, createdAt: { gte: espacio.horaApertura } },
     include: INCLUDE_PEDIDO_COMPLETO,
     orderBy: { createdAt: "desc" },
   });
@@ -130,7 +187,7 @@ export async function listarParaCocina() {
   return prisma.itemPedido.findMany({
     where: {
       areaPreparacion: AreaPreparacion.COCINA,
-      estado: { in: [EstadoPedido.PENDIENTE, EstadoPedido.PREPARANDO] },
+      estado: { in: [EstadoPedido.PENDIENTE, EstadoPedido.PREPARANDO, EstadoPedido.LISTO] },
     },
     include: { producto: true, pedido: { include: { espacio: true } } },
     orderBy: { pedido: { createdAt: "asc" } },
@@ -145,7 +202,7 @@ export async function listarParaBarra() {
   return prisma.itemPedido.findMany({
     where: {
       areaPreparacion: AreaPreparacion.BARRA,
-      estado: { in: [EstadoPedido.PENDIENTE, EstadoPedido.PREPARANDO] },
+      estado: { in: [EstadoPedido.PENDIENTE, EstadoPedido.PREPARANDO, EstadoPedido.LISTO] },
     },
     include: { producto: true, pedido: { include: { espacio: true } } },
     orderBy: { pedido: { createdAt: "asc" } },
@@ -186,28 +243,7 @@ export async function actualizarEstadoItem(itemId: string, nuevoEstado: string) 
  */
 async function sincronizarEstadoPedido(pedidoId: string) {
   const items: ItemPedido[] = await prisma.itemPedido.findMany({ where: { pedidoId } });
-
-  let nuevoEstado: string = EstadoPedido.PENDIENTE;
-
-  if (items.every((i: ItemPedido) => i.estado === EstadoPedido.CANCELADO)) {
-    nuevoEstado = EstadoPedido.CANCELADO;
-  } else if (
-    items.every((i: ItemPedido) =>
-      [EstadoPedido.ENTREGADO, EstadoPedido.CANCELADO].includes(i.estado as EstadoPedido)
-    )
-  ) {
-    nuevoEstado = EstadoPedido.ENTREGADO;
-  } else if (
-    items.every((i: ItemPedido) =>
-      [EstadoPedido.LISTO, EstadoPedido.ENTREGADO, EstadoPedido.CANCELADO].includes(
-        i.estado as EstadoPedido
-      )
-    )
-  ) {
-    nuevoEstado = EstadoPedido.LISTO;
-  } else if (items.some((i: ItemPedido) => i.estado === EstadoPedido.PREPARANDO)) {
-    nuevoEstado = EstadoPedido.PREPARANDO;
-  }
+  const nuevoEstado = calcularEstadoAgregado(items.map((i) => i.estado));
 
   return prisma.pedido.update({
     where: { id: pedidoId },

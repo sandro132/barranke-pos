@@ -29,6 +29,8 @@ export function MesaDetallePage() {
     mutationFn: () => cerrarEspacio(id!),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["espacios"] });
+      queryClient.invalidateQueries({ queryKey: ["espacio", id] });
+      queryClient.invalidateQueries({ queryKey: ["pedidos", "espacio", id] });
       navigate("/mesas");
     },
   });
@@ -66,7 +68,7 @@ export function MesaDetallePage() {
           </h1>
           <p className="text-ink-muted text-sm mt-1">
             Abierta hace {espacio.tiempoAbiertaMinutos} min
-            {espacio.personas ? ` · ${espacio.personas} personas` : ""}
+            {espacio.descripcion ? ` · ${espacio.descripcion}` : ""}
           </p>
         </div>
         <div className="text-right">

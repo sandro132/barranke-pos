@@ -11,7 +11,7 @@ export interface ItemPedidoDTO {
   estado: "PENDIENTE" | "PREPARANDO" | "LISTO" | "ENTREGADO" | "CANCELADO";
   notas: string | null;
   producto: ProductoDTO;
-  pedido?: { id: string; espacio: { id: string; nombre: string } };
+  pedido?: { id: string; createdAt: string; espacio: { id: string; nombre: string } };
 }
 
 export interface PedidoDTO {

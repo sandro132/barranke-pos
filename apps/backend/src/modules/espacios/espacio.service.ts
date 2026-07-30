@@ -101,7 +101,7 @@ export async function abrirEspacio(id: string, data: AbrirEspacioInput) {
     data: {
       estado: EstadoEspacio.OCUPADA,
       horaApertura: new Date(),
-      personas: data.personas,
+      descripcion: data.descripcion,
     },
   });
 
@@ -128,7 +128,7 @@ export async function cerrarEspacio(id: string) {
     data: {
       estado: EstadoEspacio.LIBRE,
       horaApertura: null,
-      personas: null,
+      descripcion: null,
     },
   });
 

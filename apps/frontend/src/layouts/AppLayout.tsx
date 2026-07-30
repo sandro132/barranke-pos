@@ -5,11 +5,11 @@ import { useSocketConnection } from "../hooks/useSocketConnection";
 const NAV_ITEMS = [
   { to: "/", label: "Dashboard", end: true },
   { to: "/mesas", label: "Mesas y Barras" },
+  { to: "/cocina", label: "Cocina" },
+  { to: "/barra", label: "Barra" },
 ];
 
 const PROXIMAMENTE = [
-  { label: "Cocina", fase: "Fase 7" },
-  { label: "Barra", fase: "Fase 7" },
   { label: "Caja", fase: "Fase 8" },
   { label: "Reportes", fase: "Fase 11" },
 ];
@@ -24,8 +24,8 @@ export function AppLayout() {
     <div className="min-h-screen bg-base flex">
       <aside className="w-60 shrink-0 bg-surface border-r border-border flex flex-col">
         <div className="px-5 py-6">
-          <h1 className="font-display font-bold uppercase text-xl tracking-wide text-ink">
-            Barranke
+          <h1 className="font-display font-bold uppercase text-xl tracking-wide text-ink leading-tight">
+            Barranke<span className="text-rock-bright italic">Rock</span>
           </h1>
           <div className="h-0.5 w-10 bg-rock mt-2" />
         </div>

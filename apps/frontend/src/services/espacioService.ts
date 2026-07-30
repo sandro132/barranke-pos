@@ -7,7 +7,7 @@ export interface EspacioDTO {
   estado: "LIBRE" | "OCUPADA" | "RESERVADA";
   capacidad: number | null;
   horaApertura: string | null;
-  personas: number | null;
+  descripcion: string | null;
   totalConsumido: number;
   tiempoAbiertaMinutos: number;
 }
@@ -20,10 +20,10 @@ export function obtenerEspacio(id: string) {
   return apiRequest<EspacioDTO>(`/espacios/${id}`);
 }
 
-export function abrirEspacio(id: string, personas?: number) {
+export function abrirEspacio(id: string, descripcion?: string) {
   return apiRequest<EspacioDTO>(`/espacios/${id}/abrir`, {
     method: "POST",
-    body: { personas },
+    body: { descripcion },
   });
 }
 

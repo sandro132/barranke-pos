@@ -1,0 +1,82 @@
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { ItemPedidoDTO, actualizarEstadoItem } from "../../services/pedidoService";
+import { usePedidoRealtime } from "../../hooks/usePedidoRealtime";
+import { ItemProduccionCard } from "./ItemProduccionCard";
+
+const COLUMNAS = [
+  { estado: "PENDIENTE", titulo: "Pendiente" },
+  { estado: "PREPARANDO", titulo: "Preparando" },
+  { estado: "LISTO", titulo: "Listo" },
+];
+
+export function TableroProduccion({
+  titulo,
+  queryKey,
+  queryFn,
+}: {
+  titulo: string;
+  queryKey: string[];
+  queryFn: () => Promise<ItemPedidoDTO[]>;
+}) {
+  const queryClient = useQueryClient();
+
+  const { data, isLoading } = useQuery({ queryKey, queryFn });
+
+  usePedidoRealtime([queryKey]);
+
+  const cambiarEstadoMutation = useMutation({
+    mutationFn: ({ itemId, estado }: { itemId: string; estado: string }) =>
+      actualizarEstadoItem(itemId, estado),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey });
+      // El total consumido y el estado de la mesa pueden cambiar (ítems entregados).
+      queryClient.invalidateQueries({ queryKey: ["espacios"] });
+    },
+  });
+
+  return (
+    <div className="p-8 h-screen flex flex-col">
+      <header className="mb-6">
+        <h1 className="font-display uppercase text-2xl font-bold tracking-wide text-ink">
+          {titulo}
+        </h1>
+        <p className="text-ink-muted text-sm mt-1">Se actualiza solo, en tiempo real</p>
+      </header>
+
+      {isLoading ? (
+        <p className="text-sm text-ink-muted">Cargando...</p>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 flex-1 overflow-hidden">
+          {COLUMNAS.map((col) => {
+            const items = (data ?? []).filter((i) => i.estado === col.estado);
+            return (
+              <div key={col.estado} className="flex flex-col overflow-hidden">
+                <h2 className="font-display uppercase text-sm font-semibold tracking-wide text-ink-muted mb-3 flex items-center gap-2">
+                  {col.titulo}
+                  <span className="bg-surface-raised text-ink-muted text-xs rounded-full px-2 py-0.5">
+                    {items.length}
+                  </span>
+                </h2>
+                <div className="flex flex-col gap-3 overflow-y-auto pr-1">
+                  {items.length === 0 && (
+                    <p className="text-sm text-ink-muted/60">Nada aquí por ahora</p>
+                  )}
+                  {items.map((item) => (
+                    <ItemProduccionCard
+                      key={item.id}
+                      item={item}
+                      onCambiarEstado={(itemId, estado) =>
+                        cambiarEstadoMutation.mutate({ itemId, estado })
+                      }
+                      cambiandoEstado={cambiarEstadoMutation.isPending}
+                    />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}

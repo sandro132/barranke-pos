@@ -4,6 +4,8 @@ import { DashboardPage } from "./pages/Dashboard/DashboardPage";
 import { MesasPage } from "./pages/Mesas/MesasPage";
 import { MesaDetallePage } from "./pages/Mesas/MesaDetallePage";
 import { NuevoPedidoPage } from "./pages/Mesas/NuevoPedidoPage";
+import { CocinaPage } from "./pages/Cocina/CocinaPage";
+import { BarraPage } from "./pages/Barra/BarraPage";
 import { AppLayout } from "./layouts/AppLayout";
 import { RequireAuth } from "./components/RequireAuth";
 
@@ -19,6 +21,8 @@ export function App() {
             <Route path="/mesas" element={<MesasPage />} />
             <Route path="/mesas/:id" element={<MesaDetallePage />} />
             <Route path="/mesas/:id/pedido" element={<NuevoPedidoPage />} />
+            <Route path="/cocina" element={<CocinaPage />} />
+            <Route path="/barra" element={<BarraPage />} />
           </Route>
         </Route>
       </Routes>

@@ -39,12 +39,13 @@ export function LoginPage() {
     <div className="grain-texture min-h-screen bg-base flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-10">
-          <h1 className="font-display font-bold uppercase text-4xl tracking-wide text-ink">
-            Barranke
+          <h1 className="font-display font-bold uppercase leading-[0.95]">
+            <span className="block text-4xl tracking-wide text-ink">Barranke</span>
+            <span className="block text-5xl tracking-wide text-rock-bright italic">Rock</span>
           </h1>
           <div className="h-1 w-16 bg-rock mx-auto my-3" />
           <p className="font-display uppercase text-sm tracking-[0.3em] text-ink-muted">
-            Rock Café Bar
+            Café Bar
           </p>
         </div>
 
