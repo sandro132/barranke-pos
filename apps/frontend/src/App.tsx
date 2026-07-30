@@ -3,6 +3,7 @@ import { LoginPage } from "./pages/Login/LoginPage";
 import { DashboardPage } from "./pages/Dashboard/DashboardPage";
 import { MesasPage } from "./pages/Mesas/MesasPage";
 import { MesaDetallePage } from "./pages/Mesas/MesaDetallePage";
+import { NuevoPedidoPage } from "./pages/Mesas/NuevoPedidoPage";
 import { AppLayout } from "./layouts/AppLayout";
 import { RequireAuth } from "./components/RequireAuth";
 
@@ -17,6 +18,7 @@ export function App() {
             <Route path="/" element={<DashboardPage />} />
             <Route path="/mesas" element={<MesasPage />} />
             <Route path="/mesas/:id" element={<MesaDetallePage />} />
+            <Route path="/mesas/:id/pedido" element={<NuevoPedidoPage />} />
           </Route>
         </Route>
       </Routes>

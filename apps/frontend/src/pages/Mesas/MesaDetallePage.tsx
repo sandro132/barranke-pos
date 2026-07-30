@@ -5,10 +5,7 @@ import { Button } from "../../components/ui/Button";
 import { Badge } from "../../components/ui/Badge";
 import { cerrarEspacio, obtenerEspacio } from "../../services/espacioService";
 import { listarPorEspacio, repetirUltimaRonda } from "../../services/pedidoService";
-
-function formatoMoneda(valor: number) {
-  return valor.toLocaleString("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 });
-}
+import { formatoMoneda } from "../../utils/format";
 
 export function MesaDetallePage() {
   const { id } = useParams<{ id: string }>();
@@ -96,9 +93,7 @@ export function MesaDetallePage() {
         >
           {cerrarMutation.isPending ? "Cerrando..." : "Cerrar mesa"}
         </Button>
-        <Button disabled title="Disponible en la Fase 6">
-          + Agregar productos
-        </Button>
+        <Button onClick={() => navigate(`/mesas/${id}/pedido`)}>+ Agregar productos</Button>
       </div>
 
       <Card>

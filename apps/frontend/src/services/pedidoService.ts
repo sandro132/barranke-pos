@@ -50,7 +50,7 @@ export function actualizarEstadoItem(itemId: string, estado: string) {
 }
 
 export function crearPedido(espacioId: string, items: { productoId: string; cantidad: number; notas?: string }[]) {
-  return apiRequest(`/pedidos`, {
+  return apiRequest<PedidoDTO>(`/pedidos`, {
     method: "POST",
     body: { espacioId, items },
   });

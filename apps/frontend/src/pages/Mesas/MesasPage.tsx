@@ -8,10 +8,7 @@ import { Input } from "../../components/ui/Input";
 import { abrirEspacio, EspacioDTO, listarEspacios } from "../../services/espacioService";
 import { getSocket } from "../../sockets/socket";
 import { SOCKET_EVENTS } from "@barranke/shared";
-
-function formatoMoneda(valor: number) {
-  return valor.toLocaleString("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 });
-}
+import { formatoMoneda } from "../../utils/format";
 
 function EspacioCard({ espacio, onClick }: { espacio: EspacioDTO; onClick: () => void }) {
   const ocupada = espacio.estado === "OCUPADA";
