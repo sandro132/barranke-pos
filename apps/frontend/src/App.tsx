@@ -10,6 +10,7 @@ import { CajaPage } from "./pages/Caja/CajaPage";
 import { ComprasPage } from "./pages/Compras/ComprasPage";
 import { NuevaCompraPage } from "./pages/Compras/NuevaCompraPage";
 import { ProductosPage } from "./pages/Productos/ProductosPage";
+import { TicketPage } from "./pages/Ticket/TicketPage";
 import { AppLayout } from "./layouts/AppLayout";
 import { RequireAuth } from "./components/RequireAuth";
 
@@ -20,6 +21,9 @@ export function App() {
         <Route path="/login" element={<LoginPage />} />
 
         <Route element={<RequireAuth />}>
+          {/* Fuera del AppLayout a propósito: el ticket no debe mostrar el sidebar al imprimir */}
+          <Route path="/ventas/:ventaId/ticket" element={<TicketPage />} />
+
           <Route element={<AppLayout />}>
             <Route path="/" element={<DashboardPage />} />
             <Route path="/mesas" element={<MesasPage />} />

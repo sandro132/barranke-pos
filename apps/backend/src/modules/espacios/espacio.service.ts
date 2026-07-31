@@ -13,14 +13,16 @@ import {
 type PedidoConItems = Pedido & { items: ItemPedido[] };
 
 /**
- * Suma los ítems de los pedidos de la sesión actual de un espacio (desde que se
- * abrió, sin contar cancelados). Es la ÚNICA fuente de verdad para "cuánto se
- * debe": la usan tanto la vista de detalle (para mostrar el total en pantalla)
- * como el cierre de mesa (para generar la Venta real). Si alguna vez cambia
- * cómo se calcula el consumo, solo hay que tocarlo aquí.
+ * Trae los pedidos de la SESIÓN ACTUAL de un espacio (desde que se abrió,
+ * sin contar cancelados). Es la ÚNICA fuente de verdad de "qué incluye esta
+ * cuenta": la usan el cálculo del total en pantalla, la generación de la
+ * Venta al cerrar, y el vínculo pedidos→venta para reconstruir el ticket después.
  */
-async function calcularTotalConsumido(espacioId: string, horaApertura: Date): Promise<number> {
-  const pedidos: PedidoConItems[] = await prisma.pedido.findMany({
+async function obtenerPedidosDeSesion(
+  espacioId: string,
+  horaApertura: Date
+): Promise<PedidoConItems[]> {
+  return prisma.pedido.findMany({
     where: {
       espacioId,
       createdAt: { gte: horaApertura },
@@ -28,7 +30,9 @@ async function calcularTotalConsumido(espacioId: string, horaApertura: Date): Pr
     },
     include: { items: true },
   });
+}
 
+function calcularTotalDePedidos(pedidos: PedidoConItems[]): number {
   return pedidos.reduce((total: number, pedido: PedidoConItems) => {
     const totalPedido = pedido.items.reduce(
       (sub: number, item: ItemPedido) => sub + Number(item.precioUnitario) * item.cantidad,
@@ -36,6 +40,11 @@ async function calcularTotalConsumido(espacioId: string, horaApertura: Date): Pr
     );
     return total + totalPedido;
   }, 0);
+}
+
+async function calcularTotalConsumido(espacioId: string, horaApertura: Date): Promise<number> {
+  const pedidos = await obtenerPedidosDeSesion(espacioId, horaApertura);
+  return calcularTotalDePedidos(pedidos);
 }
 
 /**
@@ -139,9 +148,10 @@ export async function cerrarEspacio(id: string, usuarioId: string, metodoPago?: 
     throw new AppError("Este espacio no está ocupado", 400);
   }
 
-  const total = espacio.horaApertura
-    ? await calcularTotalConsumido(espacio.id, espacio.horaApertura)
-    : 0;
+  const pedidosDeSesion = espacio.horaApertura
+    ? await obtenerPedidosDeSesion(espacio.id, espacio.horaApertura)
+    : [];
+  const total = calcularTotalDePedidos(pedidosDeSesion);
 
   if (total > 0 && !metodoPago) {
     throw new AppError("Selecciona un método de pago para cerrar la cuenta", 400);
@@ -163,6 +173,13 @@ export async function cerrarEspacio(id: string, usuarioId: string, metodoPago?: 
           metodoPago: metodoPago!,
           cajaId: cajaAbierta?.id ?? null,
         },
+      });
+
+      // Vincula los pedidos de esta sesión a la venta recién creada, para poder
+      // reconstruir el ticket (qué productos incluía) en cualquier momento después.
+      await tx.pedido.updateMany({
+        where: { id: { in: pedidosDeSesion.map((p) => p.id) } },
+        data: { ventaId: venta.id },
       });
 
       if (cajaAbierta) {

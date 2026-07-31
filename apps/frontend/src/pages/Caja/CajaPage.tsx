@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card } from "../../components/ui/Card";
@@ -235,6 +236,40 @@ export function CajaPage() {
           </div>
         </Card>
       </div>
+
+      <Card className="mb-6">
+        <h2 className="font-display uppercase text-sm font-semibold tracking-wide text-ink-muted mb-3">
+          Ventas de esta caja
+        </h2>
+        {caja.ventas.length === 0 ? (
+          <p className="text-sm text-ink-muted">Todavía no se ha cerrado ninguna mesa con esta caja abierta.</p>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {[...caja.ventas].reverse().map((v) => (
+              <div key={v.id} className="flex items-center justify-between text-sm border-b border-border pb-2 last:border-0">
+                <div>
+                  <p className="text-ink">{v.espacio.nombre}</p>
+                  <p className="text-xs text-ink-muted">
+                    {new Date(v.fecha).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })}
+                    {" · "}
+                    {ETIQUETAS_METODO[v.metodoPago] ?? v.metodoPago}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-ink font-medium">{formatoMoneda(v.total)}</span>
+                  <Link
+                    to={`/ventas/${v.id}/ticket`}
+                    target="_blank"
+                    className="text-xs text-ink-muted hover:text-rock-bright underline"
+                  >
+                    Ver ticket
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
 
       {/* Modal registrar movimiento */}
       <Modal

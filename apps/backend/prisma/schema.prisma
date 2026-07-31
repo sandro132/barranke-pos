@@ -152,6 +152,12 @@ model Pedido {
   estado    String   @default("PENDIENTE")
   createdAt DateTime @default(now())
 
+  // Se llena cuando se cierra la mesa: permite reconstruir el ticket de una
+  // venta pasada (qué pedidos/ítems incluía), ya que Venta no guarda los
+  // ítems directamente.
+  ventaId String?
+  venta   Venta?  @relation(fields: [ventaId], references: [id])
+
   items ItemPedido[]
 }
 
@@ -189,6 +195,8 @@ model Venta {
 
   cajaId String?
   caja   Caja?   @relation(fields: [cajaId], references: [id])
+
+  pedidos Pedido[]
 }
 
 // =========================
