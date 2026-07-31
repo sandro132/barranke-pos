@@ -10,9 +10,8 @@ const NAV_ITEMS = [
   { to: "/barra", label: "Barra" },
   { to: "/caja", label: "Caja" },
   { to: "/compras", label: "Compras" },
+  { to: "/reportes", label: "Reportes" },
 ];
-
-const PROXIMAMENTE = [{ label: "Reportes", fase: "Fase 11" }];
 
 export function AppLayout() {
   useSocketConnection();
@@ -46,20 +45,6 @@ export function AppLayout() {
             >
               {item.label}
             </NavLink>
-          ))}
-
-          <p className="px-3 pt-4 pb-1 text-xs uppercase tracking-wide text-ink-muted/60">
-            Próximamente
-          </p>
-          {PROXIMAMENTE.map((item) => (
-            <div
-              key={item.label}
-              className="px-3 py-2.5 rounded-md text-sm text-ink-muted/50 flex justify-between cursor-not-allowed"
-              title={`Disponible en ${item.fase}`}
-            >
-              <span>{item.label}</span>
-              <span className="text-xs">{item.fase}</span>
-            </div>
           ))}
         </nav>
 

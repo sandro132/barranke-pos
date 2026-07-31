@@ -1,0 +1,89 @@
+import { apiRequest } from "./api";
+
+export interface VentaPeriodoDTO {
+  periodo: string;
+  total: number;
+  cantidad: number;
+}
+
+export interface ProductoReporteDTO {
+  nombre: string;
+  categoria: string;
+  cantidad: number;
+  ingresos: number;
+}
+
+export interface ProductosReporteDTO {
+  masVendidos: ProductoReporteDTO[];
+  menosVendidos: ProductoReporteDTO[];
+}
+
+export interface GananciasDTO {
+  ingresos: number;
+  costos: number;
+  ganancia: number;
+  margen: number;
+}
+
+export interface MetodoPagoReporteDTO {
+  metodo: string;
+  total: number;
+}
+
+export interface CategoriaReporteDTO {
+  categoria: string;
+  cantidad: number;
+  total: number;
+}
+
+export interface StockBajoReporteDTO {
+  id: string;
+  nombre: string;
+  stock: number;
+  stockMinimo: number;
+  unidad: string;
+}
+
+export interface InventarioReporteDTO {
+  valorTotal: number;
+  valorProductos: number;
+  valorIngredientes: number;
+  stockBajo: StockBajoReporteDTO[];
+}
+
+function query(desde?: string, hasta?: string, extra?: Record<string, string>) {
+  const params = new URLSearchParams();
+  if (desde) params.set("desde", desde);
+  if (hasta) params.set("hasta", hasta);
+  if (extra) Object.entries(extra).forEach(([k, v]) => params.set(k, v));
+  const qs = params.toString();
+  return qs ? `?${qs}` : "";
+}
+
+export function obtenerVentasPorPeriodo(
+  desde?: string,
+  hasta?: string,
+  agrupacion: "dia" | "mes" | "anio" = "dia"
+) {
+  return apiRequest<VentaPeriodoDTO[]>(`/reportes/ventas${query(desde, hasta, { agrupacion })}`);
+}
+
+export function obtenerProductosReporte(desde?: string, hasta?: string) {
+  return apiRequest<ProductosReporteDTO>(`/reportes/productos${query(desde, hasta)}`);
+}
+
+export function obtenerGanancias(desde?: string, hasta?: string) {
+  return apiRequest<GananciasDTO>(`/reportes/ganancias${query(desde, hasta)}`);
+}
+
+export function obtenerMetodosPagoReporte(desde?: string, hasta?: string) {
+  return apiRequest<MetodoPagoReporteDTO[]>(`/reportes/metodos-pago${query(desde, hasta)}`);
+}
+
+export function obtenerCategoriasReporte(desde?: string, hasta?: string) {
+  return apiRequest<CategoriaReporteDTO[]>(`/reportes/categorias${query(desde, hasta)}`);
+}
+
+export function obtenerInventarioReporte() {
+  return apiRequest<InventarioReporteDTO>(`/reportes/inventario`);
+}

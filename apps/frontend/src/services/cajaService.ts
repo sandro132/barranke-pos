@@ -46,6 +46,12 @@ export interface CierreCajaResultadoDTO extends ResumenCajaDTO {
   diferencia: number;
 }
 
+export interface CajaDetalleDTO extends ResumenCajaDTO {
+  abierta: boolean;
+  fechaCierre: string | null;
+  montoFinal: number | null;
+}
+
 export function obtenerCajaActual() {
   return apiRequest<ResumenCajaDTO | null>("/caja/actual");
 }
@@ -70,5 +76,5 @@ export function listarHistorialCaja() {
 }
 
 export function obtenerDetalleCaja(id: string) {
-  return apiRequest<CierreCajaResultadoDTO>(`/caja/${id}`);
+  return apiRequest<CajaDetalleDTO>(`/caja/${id}`);
 }

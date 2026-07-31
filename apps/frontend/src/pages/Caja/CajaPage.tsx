@@ -54,6 +54,9 @@ function PantallaAbrirCaja() {
       <header className="mb-6">
         <h1 className="font-display uppercase text-2xl font-bold tracking-wide text-ink">Caja</h1>
         <p className="text-ink-muted text-sm mt-1">No hay una caja abierta. Ábrela para empezar el día.</p>
+        <Link to="/caja/historial" className="text-sm text-ink-muted hover:text-ink underline">
+          Ver historial de cajas anteriores
+        </Link>
       </header>
 
       <Card>
@@ -151,6 +154,9 @@ export function CajaPage() {
           </p>
         </div>
         <div className="flex gap-3">
+          <Link to="/caja/historial" className="self-center text-sm text-ink-muted hover:text-ink underline mr-2">
+            Ver historial
+          </Link>
           <Button
             variant="secondary"
             onClick={() => {

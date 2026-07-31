@@ -11,6 +11,9 @@ import { ComprasPage } from "./pages/Compras/ComprasPage";
 import { NuevaCompraPage } from "./pages/Compras/NuevaCompraPage";
 import { ProductosPage } from "./pages/Productos/ProductosPage";
 import { TicketPage } from "./pages/Ticket/TicketPage";
+import { ReportesPage } from "./pages/Reportes/ReportesPage";
+import { HistorialCajaPage } from "./pages/Caja/HistorialCajaPage";
+import { DetalleCajaHistorialPage } from "./pages/Caja/DetalleCajaHistorialPage";
 import { AppLayout } from "./layouts/AppLayout";
 import { RequireAuth } from "./components/RequireAuth";
 
@@ -32,9 +35,12 @@ export function App() {
             <Route path="/cocina" element={<CocinaPage />} />
             <Route path="/barra" element={<BarraPage />} />
             <Route path="/caja" element={<CajaPage />} />
+            <Route path="/caja/historial" element={<HistorialCajaPage />} />
+            <Route path="/caja/historial/:id" element={<DetalleCajaHistorialPage />} />
             <Route path="/compras" element={<ComprasPage />} />
             <Route path="/compras/nueva" element={<NuevaCompraPage />} />
             <Route path="/productos" element={<ProductosPage />} />
+            <Route path="/reportes" element={<ReportesPage />} />
           </Route>
         </Route>
       </Routes>
