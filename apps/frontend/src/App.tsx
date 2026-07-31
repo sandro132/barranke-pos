@@ -10,6 +10,7 @@ import { CajaPage } from "./pages/Caja/CajaPage";
 import { ComprasPage } from "./pages/Compras/ComprasPage";
 import { NuevaCompraPage } from "./pages/Compras/NuevaCompraPage";
 import { ProductosPage } from "./pages/Productos/ProductosPage";
+import { IngredientesPage } from "./pages/Ingredientes/IngredientesPage";
 import { TicketPage } from "./pages/Ticket/TicketPage";
 import { ReportesPage } from "./pages/Reportes/ReportesPage";
 import { HistorialCajaPage } from "./pages/Caja/HistorialCajaPage";
@@ -40,6 +41,7 @@ export function App() {
             <Route path="/compras" element={<ComprasPage />} />
             <Route path="/compras/nueva" element={<NuevaCompraPage />} />
             <Route path="/productos" element={<ProductosPage />} />
+            <Route path="/ingredientes" element={<IngredientesPage />} />
             <Route path="/reportes" element={<ReportesPage />} />
           </Route>
         </Route>

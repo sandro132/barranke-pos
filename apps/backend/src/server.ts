@@ -18,7 +18,7 @@ import reporteRoutes from "./modules/reportes/reporte.routes";
 
 const app = express();
 
-app.use(cors({ origin: env.corsOrigin, credentials: true }));
+app.use(cors({ origin: env.corsOrigins, credentials: true }));
 app.use(express.json());
 
 // Health check simple para confirmar que el servidor está vivo

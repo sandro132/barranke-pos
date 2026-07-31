@@ -11,7 +11,7 @@ let ioInstance: SocketIOServer | null = null;
  */
 export function initSocket(httpServer: http.Server): SocketIOServer {
   ioInstance = new SocketIOServer(httpServer, {
-    cors: { origin: env.corsOrigin, credentials: true },
+    cors: { origin: env.corsOrigins, credentials: true },
   });
 
   ioInstance.on("connection", (socket) => {

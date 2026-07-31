@@ -18,5 +18,10 @@ export const env = {
   databaseUrl: required("DATABASE_URL"),
   jwtSecret: required("JWT_SECRET"),
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? "12h",
-  corsOrigin: process.env.CORS_ORIGIN ?? "http://localhost:5173",
+  // Acepta una lista separada por comas (ej. "http://localhost:5173,http://localhost:4173")
+  // para que tanto el modo desarrollo (5173) como el preview de producción (4173)
+  // puedan conectarse sin tener que editar el .env cada vez que cambias de uno a otro.
+  corsOrigins: (process.env.CORS_ORIGIN ?? "http://localhost:5173,http://localhost:4173")
+    .split(",")
+    .map((o) => o.trim()),
 };
