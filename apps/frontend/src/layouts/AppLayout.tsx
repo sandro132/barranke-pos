@@ -5,9 +5,11 @@ import { useSocketConnection } from "../hooks/useSocketConnection";
 const NAV_ITEMS = [
   { to: "/", label: "Dashboard", end: true },
   { to: "/mesas", label: "Mesas y Barras" },
+  { to: "/productos", label: "Productos" },
   { to: "/cocina", label: "Cocina" },
   { to: "/barra", label: "Barra" },
   { to: "/caja", label: "Caja" },
+  { to: "/compras", label: "Compras" },
 ];
 
 const PROXIMAMENTE = [{ label: "Reportes", fase: "Fase 11" }];

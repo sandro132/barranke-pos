@@ -7,6 +7,9 @@ import { NuevoPedidoPage } from "./pages/Mesas/NuevoPedidoPage";
 import { CocinaPage } from "./pages/Cocina/CocinaPage";
 import { BarraPage } from "./pages/Barra/BarraPage";
 import { CajaPage } from "./pages/Caja/CajaPage";
+import { ComprasPage } from "./pages/Compras/ComprasPage";
+import { NuevaCompraPage } from "./pages/Compras/NuevaCompraPage";
+import { ProductosPage } from "./pages/Productos/ProductosPage";
 import { AppLayout } from "./layouts/AppLayout";
 import { RequireAuth } from "./components/RequireAuth";
 
@@ -25,6 +28,9 @@ export function App() {
             <Route path="/cocina" element={<CocinaPage />} />
             <Route path="/barra" element={<BarraPage />} />
             <Route path="/caja" element={<CajaPage />} />
+            <Route path="/compras" element={<ComprasPage />} />
+            <Route path="/compras/nueva" element={<NuevaCompraPage />} />
+            <Route path="/productos" element={<ProductosPage />} />
           </Route>
         </Route>
       </Routes>

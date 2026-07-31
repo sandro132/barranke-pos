@@ -12,10 +12,35 @@ export interface ProductoDTO {
   codigoInterno: string;
 }
 
+export interface CrearProductoInput {
+  nombre: string;
+  categoria: string;
+  precio: number;
+  costo: number;
+  stock: number;
+  unidad: string;
+}
+
 export function listarProductos(params?: { categoria?: string; activo?: boolean }) {
   const query = new URLSearchParams();
   if (params?.categoria) query.set("categoria", params.categoria);
   if (params?.activo !== undefined) query.set("activo", String(params.activo));
   const qs = query.toString();
   return apiRequest<ProductoDTO[]>(`/productos${qs ? `?${qs}` : ""}`);
+}
+
+export function crearProducto(data: CrearProductoInput) {
+  return apiRequest<ProductoDTO>("/productos", { method: "POST", body: data });
+}
+
+export function actualizarProducto(id: string, data: Partial<CrearProductoInput>) {
+  return apiRequest<ProductoDTO>(`/productos/${id}`, { method: "PATCH", body: data });
+}
+
+export function desactivarProducto(id: string) {
+  return apiRequest<ProductoDTO>(`/productos/${id}/desactivar`, { method: "POST" });
+}
+
+export function reactivarProducto(id: string) {
+  return apiRequest<ProductoDTO>(`/productos/${id}/reactivar`, { method: "POST" });
 }
