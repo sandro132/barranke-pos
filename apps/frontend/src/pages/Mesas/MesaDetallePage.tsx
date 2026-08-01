@@ -5,9 +5,16 @@ import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
 import { Badge } from "../../components/ui/Badge";
 import { Modal } from "../../components/ui/Modal";
-import { cerrarEspacio, obtenerEspacio } from "../../services/espacioService";
+import { Input } from "../../components/ui/Input";
+import {
+  cerrarEspacio,
+  obtenerEspacio,
+  PagoDividido,
+  separarEspacio,
+} from "../../services/espacioService";
 import { listarPorEspacio, repetirUltimaRonda } from "../../services/pedidoService";
 import { formatoMoneda } from "../../utils/format";
+import { UnirMesasModal } from "./UnirMesasModal";
 
 // TARJETA queda preparada en el backend pero no se ofrece todavía como opción
 // (según el pedido original: "preparado para tarjetas en el futuro").
@@ -19,13 +26,24 @@ const METODOS_PAGO = [
   { valor: "OTRO", etiqueta: "Otro" },
 ];
 
+function dividirEnPartesIguales(total: number, n: number): number[] {
+  const base = Math.floor(total / n);
+  const partes = Array(n).fill(base);
+  // La última parte se lleva el residuo del redondeo, para que la suma cuadre exacto.
+  partes[n - 1] = total - base * (n - 1);
+  return partes;
+}
+
 export function MesaDetallePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   const [modalCierreAbierto, setModalCierreAbierto] = useState(false);
+  const [modalUnirAbierto, setModalUnirAbierto] = useState(false);
   const [metodoPago, setMetodoPago] = useState("EFECTIVO");
+  const [dividiendo, setDividiendo] = useState(false);
+  const [partes, setPartes] = useState<{ monto: string; metodoPago: string }[]>([]);
 
   const espacioQuery = useQuery({
     queryKey: ["espacio", id],
@@ -40,13 +58,18 @@ export function MesaDetallePage() {
     enabled: !!id,
   });
 
+  function invalidarTodo() {
+    queryClient.invalidateQueries({ queryKey: ["espacios"] });
+    queryClient.invalidateQueries({ queryKey: ["espacio", id] });
+    queryClient.invalidateQueries({ queryKey: ["pedidos", "espacio", id] });
+    queryClient.invalidateQueries({ queryKey: ["caja", "actual"] });
+  }
+
   const cerrarMutation = useMutation({
-    mutationFn: (metodo?: string) => cerrarEspacio(id!, metodo),
+    mutationFn: (vars: { metodo?: string; pagos?: PagoDividido[] }) =>
+      cerrarEspacio(id!, vars.metodo, vars.pagos),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["espacios"] });
-      queryClient.invalidateQueries({ queryKey: ["espacio", id] });
-      queryClient.invalidateQueries({ queryKey: ["pedidos", "espacio", id] });
-      queryClient.invalidateQueries({ queryKey: ["caja", "actual"] });
+      invalidarTodo();
       navigate("/mesas");
     },
   });
@@ -59,6 +82,11 @@ export function MesaDetallePage() {
     },
   });
 
+  const separarMutation = useMutation({
+    mutationFn: () => separarEspacio(id!),
+    onSuccess: invalidarTodo,
+  });
+
   if (espacioQuery.isLoading) {
     return <div className="p-8 text-ink-muted text-sm">Cargando...</div>;
   }
@@ -66,6 +94,55 @@ export function MesaDetallePage() {
   const espacio = espacioQuery.data;
   if (!espacio) {
     return <div className="p-8 text-ink-muted text-sm">Espacio no encontrado.</div>;
+  }
+
+  function activarDivision() {
+    const iguales = dividirEnPartesIguales(espacio!.totalConsumido, 2);
+    setPartes(iguales.map((monto) => ({ monto: String(monto), metodoPago: "EFECTIVO" })));
+    setDividiendo(true);
+  }
+
+  function cambiarNumeroPartes(n: number) {
+    const iguales = dividirEnPartesIguales(espacio!.totalConsumido, n);
+    setPartes(iguales.map((monto, i) => ({ monto: String(monto), metodoPago: partes[i]?.metodoPago ?? "EFECTIVO" })));
+  }
+
+  const sumaPartes = partes.reduce((s, p) => s + (Number(p.monto) || 0), 0);
+  const diferenciaPartes = espacio.totalConsumido - sumaPartes;
+
+  function confirmarCierre() {
+    if (dividiendo) {
+      cerrarMutation.mutate({
+        pagos: partes.map((p) => ({ metodoPago: p.metodoPago, monto: Number(p.monto) })),
+      });
+    } else {
+      cerrarMutation.mutate({ metodo: metodoPago });
+    }
+  }
+
+  // Vista reducida: esta mesa está unida a otra, todo se maneja desde ahí.
+  if (espacio.unidaA) {
+    return (
+      <div className="p-8">
+        <button onClick={() => navigate("/mesas")} className="text-sm text-ink-muted hover:text-ink mb-4">
+          ← Volver a Mesas y Barras
+        </button>
+        <Card className="max-w-md">
+          <h1 className="font-display uppercase text-xl font-bold text-ink mb-2">{espacio.nombre}</h1>
+          <p className="text-ink-muted text-sm mb-4">
+            Esta mesa está unida a <strong className="text-ink">{espacio.unidaA}</strong>. El consumo,
+            los pedidos y el cierre se manejan desde ahí.
+          </p>
+          <Button
+            variant="secondary"
+            onClick={() => separarMutation.mutate()}
+            disabled={separarMutation.isPending}
+          >
+            {separarMutation.isPending ? "Separando..." : "Separar de esa mesa"}
+          </Button>
+        </Card>
+      </div>
+    );
   }
 
   return (
@@ -86,6 +163,11 @@ export function MesaDetallePage() {
             Abierta hace {espacio.tiempoAbiertaMinutos} min
             {espacio.descripcion ? ` · ${espacio.descripcion}` : ""}
           </p>
+          {espacio.mesasUnidas.length > 0 && (
+            <p className="text-xs text-rock-bright mt-1">
+              Unida con: {espacio.mesasUnidas.join(", ")}
+            </p>
+          )}
         </div>
         <div className="text-right">
           <p className="text-xs text-ink-muted uppercase tracking-wide">Total consumido</p>
@@ -95,7 +177,7 @@ export function MesaDetallePage() {
         </div>
       </header>
 
-      <div className="flex gap-3 mb-8">
+      <div className="flex gap-3 mb-8 flex-wrap">
         <Button
           variant="secondary"
           onClick={() => repetirMutation.mutate()}
@@ -103,12 +185,23 @@ export function MesaDetallePage() {
         >
           {repetirMutation.isPending ? "Repitiendo..." : "Repetir última ronda"}
         </Button>
+        <Button variant="secondary" onClick={() => setModalUnirAbierto(true)}>
+          Unir mesa
+        </Button>
+        <Button
+          variant="secondary"
+          onClick={() => window.open(`/mesas/${id}/precuenta`, "_blank")}
+          disabled={espacio.totalConsumido === 0}
+        >
+          Precuenta
+        </Button>
         <Button
           variant="secondary"
           className="border-rock text-rock-bright hover:bg-rock-dim/20"
           onClick={() => {
+            setDividiendo(false);
             if (espacio.totalConsumido === 0) {
-              cerrarMutation.mutate(undefined);
+              cerrarMutation.mutate({});
             } else {
               setModalCierreAbierto(true);
             }
@@ -176,22 +269,90 @@ export function MesaDetallePage() {
             </span>
           </div>
 
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium text-ink-muted">Método de pago</label>
-            {METODOS_PAGO.map((m) => (
-              <button
-                key={m.valor}
-                onClick={() => setMetodoPago(m.valor)}
-                className={`text-left px-4 py-2.5 rounded-md text-sm font-medium border transition-colors ${
-                  metodoPago === m.valor
-                    ? "border-rock bg-rock-dim/20 text-ink"
-                    : "border-border text-ink-muted hover:text-ink"
-                }`}
-              >
-                {m.etiqueta}
-              </button>
-            ))}
-          </div>
+          <button
+            onClick={() => (dividiendo ? setDividiendo(false) : activarDivision())}
+            className="text-sm text-ink-muted hover:text-ink underline text-left"
+          >
+            {dividiendo ? "← Volver a un solo pago" : "Dividir cuenta en varios pagos"}
+          </button>
+
+          {!dividiendo ? (
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium text-ink-muted">Método de pago</label>
+              {METODOS_PAGO.map((m) => (
+                <button
+                  key={m.valor}
+                  onClick={() => setMetodoPago(m.valor)}
+                  className={`text-left px-4 py-2.5 rounded-md text-sm font-medium border transition-colors ${
+                    metodoPago === m.valor
+                      ? "border-rock bg-rock-dim/20 text-ink"
+                      : "border-border text-ink-muted hover:text-ink"
+                  }`}
+                >
+                  {m.etiqueta}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-ink-muted">Número de pagos:</span>
+                {[2, 3, 4].map((n) => (
+                  <button
+                    key={n}
+                    onClick={() => cambiarNumeroPartes(n)}
+                    className={`w-9 h-9 rounded-md text-sm font-medium ${
+                      partes.length === n ? "bg-rock text-ink" : "bg-surface-raised text-ink-muted"
+                    }`}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+
+              {partes.map((parte, idx) => (
+                <div key={idx} className="border border-border rounded-md p-3 flex flex-col gap-2">
+                  <p className="text-xs text-ink-muted">Pago {idx + 1}</p>
+                  <Input
+                    type="number"
+                    min={0}
+                    label="Monto"
+                    value={parte.monto}
+                    onChange={(e) => {
+                      const nuevas = [...partes];
+                      nuevas[idx] = { ...nuevas[idx], monto: e.target.value };
+                      setPartes(nuevas);
+                    }}
+                  />
+                  <div className="flex flex-wrap gap-1.5">
+                    {METODOS_PAGO.map((m) => (
+                      <button
+                        key={m.valor}
+                        onClick={() => {
+                          const nuevas = [...partes];
+                          nuevas[idx] = { ...nuevas[idx], metodoPago: m.valor };
+                          setPartes(nuevas);
+                        }}
+                        className={`px-2.5 py-1 rounded text-xs font-medium ${
+                          parte.metodoPago === m.valor
+                            ? "bg-rock text-ink"
+                            : "bg-surface-raised text-ink-muted"
+                        }`}
+                      >
+                        {m.etiqueta}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+
+              <div className={`text-sm ${diferenciaPartes === 0 ? "text-ink-muted" : "text-rock-bright"}`}>
+                {diferenciaPartes === 0
+                  ? "Los pagos suman el total exacto."
+                  : `Diferencia: ${formatoMoneda(diferenciaPartes)} (ajusta los montos)`}
+              </div>
+            </div>
+          )}
 
           {cerrarMutation.isError && (
             <p className="text-sm text-rock-bright">No se pudo cerrar la mesa. Intenta de nuevo.</p>
@@ -199,13 +360,19 @@ export function MesaDetallePage() {
 
           <Button
             fullWidth
-            disabled={cerrarMutation.isPending}
-            onClick={() => cerrarMutation.mutate(metodoPago)}
+            disabled={cerrarMutation.isPending || (dividiendo && diferenciaPartes !== 0)}
+            onClick={confirmarCierre}
           >
             {cerrarMutation.isPending ? "Cerrando..." : "Confirmar cierre"}
           </Button>
         </div>
       </Modal>
+
+      <UnirMesasModal
+        espacio={espacio}
+        open={modalUnirAbierto}
+        onClose={() => setModalUnirAbierto(false)}
+      />
     </div>
   );
 }

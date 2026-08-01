@@ -7,6 +7,7 @@ import {
   cerrarEspacioSchema,
   crearEspacioSchema,
   listarEspaciosQuerySchema,
+  unirEspaciosSchema,
 } from "./espacio.schema";
 
 export const listarHandler = asyncHandler(async (req: Request, res: Response) => {
@@ -40,7 +41,28 @@ export const abrirHandler = asyncHandler(async (req: Request, res: Response) => 
 
 export const cerrarHandler = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw new AppError("No autenticado", 401);
-  const { metodoPago } = cerrarEspacioSchema.parse(req.body);
-  const resultado = await espacioService.cerrarEspacio(req.params.id, req.user.userId, metodoPago);
+  const { metodoPago, pagos } = cerrarEspacioSchema.parse(req.body);
+  const resultado = await espacioService.cerrarEspacio(
+    req.params.id,
+    req.user.userId,
+    metodoPago,
+    pagos
+  );
   res.json(resultado);
+});
+
+export const unirHandler = asyncHandler(async (req: Request, res: Response) => {
+  const { hijoIds } = unirEspaciosSchema.parse(req.body);
+  const resultado = await espacioService.unirEspacios(req.params.id, hijoIds);
+  res.json(resultado);
+});
+
+export const separarHandler = asyncHandler(async (req: Request, res: Response) => {
+  const resultado = await espacioService.separarEspacio(req.params.id);
+  res.json(resultado);
+});
+
+export const precuentaHandler = asyncHandler(async (req: Request, res: Response) => {
+  const precuenta = await espacioService.obtenerPrecuenta(req.params.id);
+  res.json(precuenta);
 });

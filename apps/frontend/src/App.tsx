@@ -4,6 +4,7 @@ import { DashboardPage } from "./pages/Dashboard/DashboardPage";
 import { MesasPage } from "./pages/Mesas/MesasPage";
 import { MesaDetallePage } from "./pages/Mesas/MesaDetallePage";
 import { NuevoPedidoPage } from "./pages/Mesas/NuevoPedidoPage";
+import { PrecuentaPage } from "./pages/Mesas/PrecuentaPage";
 import { CocinaPage } from "./pages/Cocina/CocinaPage";
 import { BarraPage } from "./pages/Barra/BarraPage";
 import { CajaPage } from "./pages/Caja/CajaPage";
@@ -25,8 +26,9 @@ export function App() {
         <Route path="/login" element={<LoginPage />} />
 
         <Route element={<RequireAuth />}>
-          {/* Fuera del AppLayout a propósito: el ticket no debe mostrar el sidebar al imprimir */}
+          {/* Fuera del AppLayout a propósito: el ticket y la precuenta no deben mostrar el sidebar al imprimir */}
           <Route path="/ventas/:ventaId/ticket" element={<TicketPage />} />
+          <Route path="/mesas/:id/precuenta" element={<PrecuentaPage />} />
 
           <Route element={<AppLayout />}>
             <Route path="/" element={<DashboardPage />} />

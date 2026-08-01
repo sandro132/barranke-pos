@@ -23,12 +23,15 @@ function EspacioCard({ espacio, onClick }: { espacio: EspacioDTO; onClick: () =>
       }`}
     >
       <p className="font-display font-semibold text-ink">{espacio.nombre}</p>
-      {ocupada ? (
+      {espacio.unidaA ? (
+        <p className="text-xs text-rock-bright mt-1">Unida a {espacio.unidaA}</p>
+      ) : ocupada ? (
         <>
           <p className="text-sm text-ink mt-1">{formatoMoneda(espacio.totalConsumido)}</p>
           <p className="text-xs text-ink-muted mt-0.5">
             Abierta hace {espacio.tiempoAbiertaMinutos} min
             {espacio.descripcion ? ` · ${espacio.descripcion}` : ""}
+            {espacio.mesasUnidas.length > 0 && ` · +${espacio.mesasUnidas.length} unida(s)`}
           </p>
         </>
       ) : (

@@ -16,10 +16,10 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
       onClick={onClose}
     >
       <div
-        className="bg-surface border border-border rounded-lg p-6 w-full max-w-sm"
+        className="bg-surface border border-border rounded-lg w-full max-w-sm max-h-[85vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between p-6 pb-4 shrink-0">
           <h2 className="font-display uppercase text-lg font-bold text-ink">{title}</h2>
           <button
             onClick={onClose}
@@ -29,7 +29,7 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
             ×
           </button>
         </div>
-        {children}
+        <div className="px-6 pb-6 overflow-y-auto">{children}</div>
       </div>
     </div>
   );
