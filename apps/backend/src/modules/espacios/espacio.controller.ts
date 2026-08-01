@@ -41,12 +41,13 @@ export const abrirHandler = asyncHandler(async (req: Request, res: Response) => 
 
 export const cerrarHandler = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw new AppError("No autenticado", 401);
-  const { metodoPago, pagos } = cerrarEspacioSchema.parse(req.body);
+  const { metodoPago, pagos, clienteId } = cerrarEspacioSchema.parse(req.body);
   const resultado = await espacioService.cerrarEspacio(
     req.params.id,
     req.user.userId,
     metodoPago,
-    pagos
+    pagos,
+    clienteId
   );
   res.json(resultado);
 });

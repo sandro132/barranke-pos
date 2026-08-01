@@ -21,13 +21,16 @@ export const abrirEspacioSchema = z.object({
 // un total mayor a 0.
 // pagos es la alternativa para "dividir cuenta": en vez de un solo método,
 // una lista de pagos (cada uno con su monto y método) que deben sumar el total.
+// clienteId es obligatorio (a nivel de service) cuando el método es FIADO.
 export const cerrarEspacioSchema = z.object({
   metodoPago: z.nativeEnum(MetodoPago).optional(),
+  clienteId: z.string().optional(),
   pagos: z
     .array(
       z.object({
         metodoPago: z.nativeEnum(MetodoPago),
         monto: z.number().positive("Cada pago debe ser mayor a 0"),
+        clienteId: z.string().optional(),
       })
     )
     .min(2, "Para dividir la cuenta se necesitan al menos 2 pagos")

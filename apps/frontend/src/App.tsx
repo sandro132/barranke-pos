@@ -14,6 +14,8 @@ import { ProductosPage } from "./pages/Productos/ProductosPage";
 import { IngredientesPage } from "./pages/Ingredientes/IngredientesPage";
 import { TicketPage } from "./pages/Ticket/TicketPage";
 import { ReportesPage } from "./pages/Reportes/ReportesPage";
+import { PromocionesPage } from "./pages/Promociones/PromocionesPage";
+import { ClientesPage } from "./pages/Clientes/ClientesPage";
 import { HistorialCajaPage } from "./pages/Caja/HistorialCajaPage";
 import { DetalleCajaHistorialPage } from "./pages/Caja/DetalleCajaHistorialPage";
 import { AppLayout } from "./layouts/AppLayout";
@@ -45,6 +47,8 @@ export function App() {
             <Route path="/productos" element={<ProductosPage />} />
             <Route path="/ingredientes" element={<IngredientesPage />} />
             <Route path="/reportes" element={<ReportesPage />} />
+            <Route path="/promociones" element={<PromocionesPage />} />
+            <Route path="/clientes" element={<ClientesPage />} />
           </Route>
         </Route>
       </Routes>

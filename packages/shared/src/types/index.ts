@@ -61,6 +61,14 @@ export enum MetodoPago {
   DAVIPLATA = "DAVIPLATA",
   TARJETA = "TARJETA",
   OTRO = "OTRO",
+  // Se le carga a la cuenta de un cliente de confianza; no entra plata a la
+  // caja en el momento. Requiere elegir un cliente al cerrar la mesa.
+  FIADO = "FIADO",
+}
+
+export enum TipoMovimientoCuentaCliente {
+  CARGO = "CARGO",
+  ABONO = "ABONO",
 }
 
 export enum TipoMovimientoInventario {

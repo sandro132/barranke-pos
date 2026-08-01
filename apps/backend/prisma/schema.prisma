@@ -189,14 +189,19 @@ model Venta {
   subtotal  Decimal
   descuento Decimal @default(0)
   total     Decimal
-  /// Valores válidos: EFECTIVO | TRANSFERENCIA_BANCOLOMBIA | NEQUI | DAVIPLATA | TARJETA | OTRO
+  /// Valores válidos: EFECTIVO | TRANSFERENCIA_BANCOLOMBIA | NEQUI | DAVIPLATA | TARJETA | OTRO | FIADO
   metodoPago String
   fecha      DateTime @default(now())
 
   cajaId String?
   caja   Caja?   @relation(fields: [cajaId], references: [id])
 
-  pedidos Pedido[]
+  // Solo se usa cuando metodoPago = FIADO: a qué cliente se le fía esta venta.
+  clienteId String?
+  cliente   Cliente? @relation(fields: [clienteId], references: [id])
+
+  pedidos           Pedido[]
+  movimientoCuenta  MovimientoCuentaCliente?
 }
 
 // =========================
@@ -281,4 +286,29 @@ model Cliente {
   telefono   String?   @unique
   cumpleanos DateTime?
   createdAt  DateTime  @default(now())
+
+  ventas             Venta[]
+  movimientosCuenta  MovimientoCuentaCliente[]
+}
+
+// Historial de "fiado": cada consumo que se le carga a la cuenta de un
+// cliente (CARGO, generado automáticamente al cerrar una mesa con método
+// FIADO) y cada pago que hace para saldar su deuda (ABONO, registrado a
+// mano desde su ficha). El saldo actual de un cliente es simplemente la
+// suma de sus CARGO menos la suma de sus ABONO — no se guarda como un
+// número aparte, para que nunca se desincronice del historial real.
+model MovimientoCuentaCliente {
+  id          String   @id @default(cuid())
+  clienteId   String
+  cliente     Cliente  @relation(fields: [clienteId], references: [id])
+  /// Valores válidos: CARGO | ABONO
+  tipo        String
+  monto       Decimal
+  descripcion String?
+  fecha       DateTime @default(now())
+
+  // Si este movimiento vino de cerrar una mesa como fiado, queda vinculado
+  // a esa venta (para trazabilidad). Los abonos no tienen venta asociada.
+  ventaId String? @unique
+  venta   Venta?  @relation(fields: [ventaId], references: [id])
 }

@@ -288,7 +288,8 @@ export async function cerrarEspacio(
   id: string,
   usuarioId: string,
   metodoPago?: string,
-  pagos?: { metodoPago: string; monto: number }[]
+  pagos?: { metodoPago: string; monto: number; clienteId?: string }[],
+  clienteId?: string
 ) {
   const espacio = await prisma.espacio.findUnique({ where: { id } });
 
@@ -316,6 +317,18 @@ export async function cerrarEspacio(
     throw new AppError("Selecciona un método de pago para cerrar la cuenta", 400);
   }
 
+  // Fiado siempre necesita saber a quién se le está fiando.
+  if (metodoPago === "FIADO" && !clienteId) {
+    throw new AppError("Selecciona un cliente para fiar esta cuenta", 400);
+  }
+  if (pagos) {
+    for (const p of pagos) {
+      if (p.metodoPago === "FIADO" && !p.clienteId) {
+        throw new AppError("Selecciona un cliente para cada pago fiado", 400);
+      }
+    }
+  }
+
   if (pagos) {
     const sumaPagos = pagos.reduce((s, p) => s + p.monto, 0);
     // Tolerancia de $1 por posibles redondeos al dividir.
@@ -332,10 +345,12 @@ export async function cerrarEspacio(
 
     if (total > 0) {
       const cajaAbierta = await tx.caja.findFirst({ where: { abierta: true } });
-      const listaPagos = pagos ?? [{ metodoPago: metodoPago!, monto: total }];
+      const listaPagos = pagos ?? [{ metodoPago: metodoPago!, monto: total, clienteId }];
 
       for (let i = 0; i < listaPagos.length; i++) {
         const pago = listaPagos[i];
+        const esFiado = pago.metodoPago === "FIADO";
+
         const venta = await tx.venta.create({
           data: {
             espacioId: espacio.id,
@@ -345,11 +360,23 @@ export async function cerrarEspacio(
             total: pago.monto,
             metodoPago: pago.metodoPago,
             cajaId: cajaAbierta?.id ?? null,
+            clienteId: esFiado ? pago.clienteId : null,
           },
         });
         ventasCreadas.push(venta);
 
-        if (cajaAbierta) {
+        if (esFiado) {
+          // No entra plata a la caja: se carga a la cuenta del cliente para cobrar después.
+          await tx.movimientoCuentaCliente.create({
+            data: {
+              clienteId: pago.clienteId!,
+              tipo: "CARGO",
+              monto: pago.monto,
+              descripcion: `Consumo — ${espacio.nombre}`,
+              ventaId: venta.id,
+            },
+          });
+        } else if (cajaAbierta) {
           await tx.movimientoCaja.create({
             data: {
               cajaId: cajaAbierta.id,

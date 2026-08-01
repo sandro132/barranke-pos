@@ -22,6 +22,7 @@ const ETIQUETAS_METODO: Record<string, string> = {
   NEQUI: "Nequi",
   DAVIPLATA: "Daviplata",
   TARJETA: "Tarjeta",
+  FIADO: "Fiado",
   OTRO: "Otro",
 };
 

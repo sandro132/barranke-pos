@@ -13,6 +13,7 @@ import {
   separarEspacio,
 } from "../../services/espacioService";
 import { listarPorEspacio, repetirUltimaRonda } from "../../services/pedidoService";
+import { listarClientes } from "../../services/clienteService";
 import { formatoMoneda } from "../../utils/format";
 import { UnirMesasModal } from "./UnirMesasModal";
 
@@ -24,6 +25,7 @@ const METODOS_PAGO = [
   { valor: "NEQUI", etiqueta: "Nequi" },
   { valor: "DAVIPLATA", etiqueta: "Daviplata" },
   { valor: "OTRO", etiqueta: "Otro" },
+  { valor: "FIADO", etiqueta: "Fiado" },
 ];
 
 function dividirEnPartesIguales(total: number, n: number): number[] {
@@ -34,6 +36,12 @@ function dividirEnPartesIguales(total: number, n: number): number[] {
   return partes;
 }
 
+interface ParteDividida {
+  monto: string;
+  metodoPago: string;
+  clienteId: string;
+}
+
 export function MesaDetallePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -42,8 +50,9 @@ export function MesaDetallePage() {
   const [modalCierreAbierto, setModalCierreAbierto] = useState(false);
   const [modalUnirAbierto, setModalUnirAbierto] = useState(false);
   const [metodoPago, setMetodoPago] = useState("EFECTIVO");
+  const [clienteIdFiado, setClienteIdFiado] = useState("");
   const [dividiendo, setDividiendo] = useState(false);
-  const [partes, setPartes] = useState<{ monto: string; metodoPago: string }[]>([]);
+  const [partes, setPartes] = useState<ParteDividida[]>([]);
 
   const espacioQuery = useQuery({
     queryKey: ["espacio", id],
@@ -58,16 +67,23 @@ export function MesaDetallePage() {
     enabled: !!id,
   });
 
+  const clientesQuery = useQuery({
+    queryKey: ["clientes"],
+    queryFn: listarClientes,
+    enabled: modalCierreAbierto,
+  });
+
   function invalidarTodo() {
     queryClient.invalidateQueries({ queryKey: ["espacios"] });
     queryClient.invalidateQueries({ queryKey: ["espacio", id] });
     queryClient.invalidateQueries({ queryKey: ["pedidos", "espacio", id] });
     queryClient.invalidateQueries({ queryKey: ["caja", "actual"] });
+    queryClient.invalidateQueries({ queryKey: ["clientes"] });
   }
 
   const cerrarMutation = useMutation({
-    mutationFn: (vars: { metodo?: string; pagos?: PagoDividido[] }) =>
-      cerrarEspacio(id!, vars.metodo, vars.pagos),
+    mutationFn: (vars: { metodo?: string; pagos?: PagoDividido[]; clienteId?: string }) =>
+      cerrarEspacio(id!, vars.metodo, vars.pagos, vars.clienteId),
     onSuccess: () => {
       invalidarTodo();
       navigate("/mesas");
@@ -98,25 +114,43 @@ export function MesaDetallePage() {
 
   function activarDivision() {
     const iguales = dividirEnPartesIguales(espacio!.totalConsumido, 2);
-    setPartes(iguales.map((monto) => ({ monto: String(monto), metodoPago: "EFECTIVO" })));
+    setPartes(iguales.map((monto) => ({ monto: String(monto), metodoPago: "EFECTIVO", clienteId: "" })));
     setDividiendo(true);
   }
 
   function cambiarNumeroPartes(n: number) {
     const iguales = dividirEnPartesIguales(espacio!.totalConsumido, n);
-    setPartes(iguales.map((monto, i) => ({ monto: String(monto), metodoPago: partes[i]?.metodoPago ?? "EFECTIVO" })));
+    setPartes(
+      iguales.map((monto, i) => ({
+        monto: String(monto),
+        metodoPago: partes[i]?.metodoPago ?? "EFECTIVO",
+        clienteId: partes[i]?.clienteId ?? "",
+      }))
+    );
   }
 
   const sumaPartes = partes.reduce((s, p) => s + (Number(p.monto) || 0), 0);
   const diferenciaPartes = espacio.totalConsumido - sumaPartes;
 
+  // Si el método es fiado (único o en alguna parte dividida) pero no se eligió
+  // cliente, no se puede confirmar el cierre todavía.
+  const faltaClienteUnico = metodoPago === "FIADO" && !clienteIdFiado;
+  const faltaClienteDividido = dividiendo && partes.some((p) => p.metodoPago === "FIADO" && !p.clienteId);
+
   function confirmarCierre() {
     if (dividiendo) {
       cerrarMutation.mutate({
-        pagos: partes.map((p) => ({ metodoPago: p.metodoPago, monto: Number(p.monto) })),
+        pagos: partes.map((p) => ({
+          metodoPago: p.metodoPago,
+          monto: Number(p.monto),
+          clienteId: p.metodoPago === "FIADO" ? p.clienteId : undefined,
+        })),
       });
     } else {
-      cerrarMutation.mutate({ metodo: metodoPago });
+      cerrarMutation.mutate({
+        metodo: metodoPago,
+        clienteId: metodoPago === "FIADO" ? clienteIdFiado : undefined,
+      });
     }
   }
 
@@ -200,6 +234,8 @@ export function MesaDetallePage() {
           className="border-rock text-rock-bright hover:bg-rock-dim/20"
           onClick={() => {
             setDividiendo(false);
+            setMetodoPago("EFECTIVO");
+            setClienteIdFiado("");
             if (espacio.totalConsumido === 0) {
               cerrarMutation.mutate({});
             } else {
@@ -292,6 +328,29 @@ export function MesaDetallePage() {
                   {m.etiqueta}
                 </button>
               ))}
+
+              {metodoPago === "FIADO" && (
+                <div className="flex flex-col gap-1.5 mt-1">
+                  <label className="text-sm font-medium text-ink-muted">¿A quién se le fía?</label>
+                  <select
+                    value={clienteIdFiado}
+                    onChange={(e) => setClienteIdFiado(e.target.value)}
+                    className="bg-surface border border-border rounded-md px-4 py-3 text-ink focus:border-rock transition-colors"
+                  >
+                    <option value="">Selecciona un cliente...</option>
+                    {clientesQuery.data?.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.nombre} {c.saldo > 0 ? `(debe ${formatoMoneda(c.saldo)})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  {clientesQuery.data?.length === 0 && (
+                    <p className="text-xs text-rock-bright">
+                      No hay clientes creados. Ve a "Clientes" en el menú para crear uno primero.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           ) : (
             <div className="flex flex-col gap-4">
@@ -343,6 +402,24 @@ export function MesaDetallePage() {
                       </button>
                     ))}
                   </div>
+                  {parte.metodoPago === "FIADO" && (
+                    <select
+                      value={parte.clienteId}
+                      onChange={(e) => {
+                        const nuevas = [...partes];
+                        nuevas[idx] = { ...nuevas[idx], clienteId: e.target.value };
+                        setPartes(nuevas);
+                      }}
+                      className="bg-surface border border-border rounded-md px-3 py-2 text-sm text-ink focus:border-rock transition-colors"
+                    >
+                      <option value="">Selecciona un cliente...</option>
+                      {clientesQuery.data?.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.nombre}
+                        </option>
+                      ))}
+                    </select>
+                  )}
                 </div>
               ))}
 
@@ -360,7 +437,11 @@ export function MesaDetallePage() {
 
           <Button
             fullWidth
-            disabled={cerrarMutation.isPending || (dividiendo && diferenciaPartes !== 0)}
+            disabled={
+              cerrarMutation.isPending ||
+              (dividiendo && (diferenciaPartes !== 0 || faltaClienteDividido)) ||
+              (!dividiendo && faltaClienteUnico)
+            }
             onClick={confirmarCierre}
           >
             {cerrarMutation.isPending ? "Cerrando..." : "Confirmar cierre"}

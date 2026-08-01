@@ -15,6 +15,8 @@ import cajaRoutes from "./modules/caja/caja.routes";
 import compraRoutes from "./modules/compras/compra.routes";
 import ventaRoutes from "./modules/ventas/venta.routes";
 import reporteRoutes from "./modules/reportes/reporte.routes";
+import promocionRoutes from "./modules/promociones/promocion.routes";
+import clienteRoutes from "./modules/clientes/cliente.routes";
 
 const app = express();
 
@@ -38,6 +40,8 @@ app.use("/api/caja", cajaRoutes);
 app.use("/api/compras", compraRoutes);
 app.use("/api/ventas", ventaRoutes);
 app.use("/api/reportes", reporteRoutes);
+app.use("/api/promociones", promocionRoutes);
+app.use("/api/clientes", clienteRoutes);
 
 // El error handler siempre va después de todas las rutas.
 app.use(errorHandler);

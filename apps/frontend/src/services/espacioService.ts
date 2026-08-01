@@ -18,6 +18,7 @@ export interface EspacioDTO {
 export interface PagoDividido {
   metodoPago: string;
   monto: number;
+  clienteId?: string;
 }
 
 export interface PrecuentaDTO {
@@ -42,10 +43,15 @@ export function abrirEspacio(id: string, descripcion?: string) {
   });
 }
 
-export function cerrarEspacio(id: string, metodoPago?: string, pagos?: PagoDividido[]) {
+export function cerrarEspacio(
+  id: string,
+  metodoPago?: string,
+  pagos?: PagoDividido[],
+  clienteId?: string
+) {
   return apiRequest<{ espacio: EspacioDTO; venta: { id: string; total: number } | null }>(
     `/espacios/${id}/cerrar`,
-    { method: "POST", body: { metodoPago, pagos } }
+    { method: "POST", body: { metodoPago, pagos, clienteId } }
   );
 }
 

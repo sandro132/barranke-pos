@@ -12,6 +12,8 @@ const NAV_ITEMS = [
   { to: "/caja", label: "Caja" },
   { to: "/compras", label: "Compras" },
   { to: "/reportes", label: "Reportes" },
+  { to: "/promociones", label: "Promociones" },
+  { to: "/clientes", label: "Clientes" },
 ];
 
 export function AppLayout() {
