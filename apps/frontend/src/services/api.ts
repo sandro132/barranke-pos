@@ -1,6 +1,12 @@
 import { useAuthStore } from "../stores/authStore";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:4000/api";
+// Por defecto usa una ruta RELATIVA ("/api"), no una URL fija. Como el backend
+// sirve la app y la API desde el mismo servidor y puerto, esto funciona
+// automáticamente sin importar cómo se accede (localhost, la IP de la red
+// local, o un dominio público por túnel) — nunca hay que tocar esto.
+// Solo se necesita un VITE_API_URL explícito si corres el frontend por
+// separado en modo desarrollo (npm run dev en el puerto 5173).
+const API_URL = import.meta.env.VITE_API_URL || "/api";
 
 export class ApiError extends Error {
   status: number;

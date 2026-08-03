@@ -3,7 +3,7 @@ import jwt from "jsonwebtoken";
 import { prisma } from "../../lib/prisma";
 import { env } from "../../config/env";
 import { AppError } from "../../middlewares/errorHandler";
-import { LoginInput } from "./auth.schema";
+import { CambiarPasswordInput, LoginInput } from "./auth.schema";
 
 /**
  * El service nunca conoce Express (req/res). Solo lógica de negocio.
@@ -51,4 +51,29 @@ export async function getUsuarioActual(userId: string) {
     email: usuario.email,
     rol: usuario.rol,
   };
+}
+
+/**
+ * Exige la contraseña actual para poder cambiarla (no basta con estar logueado) —
+ * así, si alguien deja una sesión abierta sin querer, no cualquiera puede
+ * secuestrar la cuenta con solo cambiarle la clave.
+ */
+export async function cambiarPassword(userId: string, data: CambiarPasswordInput) {
+  const usuario = await prisma.usuario.findUnique({ where: { id: userId } });
+
+  if (!usuario) {
+    throw new AppError("Usuario no encontrado", 404);
+  }
+
+  const passwordValida = await bcrypt.compare(data.passwordActual, usuario.password);
+  if (!passwordValida) {
+    throw new AppError("La contraseña actual no es correcta", 401);
+  }
+
+  const nuevoHash = await bcrypt.hash(data.passwordNueva, 10);
+
+  await prisma.usuario.update({
+    where: { id: userId },
+    data: { password: nuevoHash },
+  });
 }

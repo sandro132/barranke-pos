@@ -1,6 +1,9 @@
 import { io, Socket } from "socket.io-client";
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL ?? "http://localhost:4000";
+// Igual que con la API: por defecto se conecta al MISMO origen desde donde se
+// cargó la página (localhost, la IP local, o el dominio del túnel) — nunca
+// hay que tocar esto salvo que corras el frontend por separado en desarrollo.
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || window.location.origin;
 
 let socket: Socket | null = null;
 

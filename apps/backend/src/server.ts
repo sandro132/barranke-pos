@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import http from "http";
+import path from "path";
 import { env } from "./config/env";
 import { errorHandler } from "./middlewares/errorHandler";
 import { initSocket } from "./sockets/socketServer";
@@ -43,6 +44,28 @@ app.use("/api/reportes", reporteRoutes);
 app.use("/api/promociones", promocionRoutes);
 app.use("/api/clientes", clienteRoutes);
 
+/**
+ * Sirve el frontend ya compilado (resultado de `npm run build` en
+ * apps/frontend) desde este mismo servidor y puerto. Así, cualquier
+ * dispositivo en la misma red WiFi del bar (el celular de un mesero, otro
+ * computador) puede usar la app entrando a http://<ip-de-esta-pc>:4000 —
+ * no hace falta correr el frontend por separado, ni pelear con CORS entre
+ * dos puertos distintos, porque todo es el mismo origen.
+ *
+ * Si esta carpeta no existe (nunca se corrió el build del frontend), esta
+ * parte simplemente no encuentra archivos y el catch-all de abajo devuelve
+ * 404 — el resto de la API sigue funcionando normal.
+ */
+const frontendDistPath = path.join(__dirname, "../../frontend/dist");
+app.use(express.static(frontendDistPath));
+
+// Cualquier ruta que NO sea /api/* ni /health devuelve el index.html del
+// frontend, para que las rutas internas de React Router (ej. /mesas/123)
+// funcionen bien incluso si alguien recarga la página estando ahí.
+app.get(/^(?!\/api|\/health).*/, (_req, res) => {
+  res.sendFile(path.join(frontendDistPath, "index.html"));
+});
+
 // El error handler siempre va después de todas las rutas.
 app.use(errorHandler);
 
@@ -52,6 +75,10 @@ const httpServer = http.createServer(app);
 // eventos en tiempo real importando getIO() desde ./sockets/socketServer.
 initSocket(httpServer);
 
-httpServer.listen(env.port, () => {
+// "0.0.0.0" (en vez de dejarlo por defecto) para asegurar que escuche en
+// TODAS las interfaces de red, no solo en localhost — así otros
+// dispositivos de la misma red pueden conectarse por la IP de esta PC.
+httpServer.listen(env.port, "0.0.0.0", () => {
   console.log(`🎸 Barranke POS backend corriendo en http://localhost:${env.port}`);
+  console.log(`   (y también accesible desde otros dispositivos de tu red WiFi por la IP de esta PC)`);
 });
