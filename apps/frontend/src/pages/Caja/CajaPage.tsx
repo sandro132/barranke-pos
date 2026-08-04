@@ -15,6 +15,7 @@ import {
   registrarMovimiento,
 } from "../../services/cajaService";
 import { ApiError } from "../../services/api";
+import { anularVenta } from "../../services/ventaService";
 
 const ETIQUETAS_METODO: Record<string, string> = {
   EFECTIVO: "Efectivo",
@@ -128,6 +129,15 @@ export function CajaPage() {
     onSuccess: (data) => {
       setResultadoCierre(data);
       queryClient.invalidateQueries({ queryKey: ["caja", "actual"] });
+    },
+  });
+
+  const anularVentaMutation = useMutation({
+    mutationFn: (ventaId: string) => anularVenta(ventaId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["caja", "actual"] });
+      queryClient.invalidateQueries({ predicate: (q) => q.queryKey[0] === "reportes" });
+      queryClient.invalidateQueries({ predicate: (q) => q.queryKey[0] === "clientes" });
     },
   });
 
@@ -271,6 +281,21 @@ export function CajaPage() {
                   >
                     Ver ticket
                   </Link>
+                  <button
+                    onClick={() => {
+                      if (
+                        window.confirm(
+                          `¿Anular la venta de ${v.espacio.nombre} por ${formatoMoneda(v.total)}? Esto no se puede deshacer.`
+                        )
+                      ) {
+                        anularVentaMutation.mutate(v.id);
+                      }
+                    }}
+                    disabled={anularVentaMutation.isPending}
+                    className="text-xs text-ink-muted hover:text-rock-bright underline"
+                  >
+                    Anular
+                  </button>
                 </div>
               </div>
             ))}

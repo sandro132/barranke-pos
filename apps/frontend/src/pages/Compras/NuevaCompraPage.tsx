@@ -106,13 +106,21 @@ export function NuevaCompraPage() {
     onError: (err) => setError(err instanceof ApiError ? err.message : "No se pudo registrar la compra"),
   });
 
+  const [busqueda, setBusqueda] = useState("");
+
   const productosDisponibles = useMemo(
-    () => (productosQuery.data ?? []).filter((p) => !carrito[`producto-${p.id}`]),
-    [productosQuery.data, carrito]
+    () =>
+      (productosQuery.data ?? [])
+        .filter((p) => !carrito[`producto-${p.id}`])
+        .filter((p) => p.nombre.toLowerCase().includes(busqueda.trim().toLowerCase())),
+    [productosQuery.data, carrito, busqueda]
   );
   const ingredientesDisponibles = useMemo(
-    () => (ingredientesQuery.data ?? []).filter((i) => !carrito[`ingrediente-${i.id}`]),
-    [ingredientesQuery.data, carrito]
+    () =>
+      (ingredientesQuery.data ?? [])
+        .filter((i) => !carrito[`ingrediente-${i.id}`])
+        .filter((i) => i.nombre.toLowerCase().includes(busqueda.trim().toLowerCase())),
+    [ingredientesQuery.data, carrito, busqueda]
   );
 
   return (
@@ -147,6 +155,14 @@ export function NuevaCompraPage() {
           >
             Ingredientes
           </button>
+        </div>
+
+        <div className="mb-4 max-w-sm">
+          <Input
+            placeholder={tab === "producto" ? "Buscar producto..." : "Buscar ingrediente..."}
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+          />
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">

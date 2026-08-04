@@ -32,14 +32,6 @@ const ETIQUETAS_METODO: Record<string, string> = {
   OTRO: "Otro",
 };
 
-const ETIQUETAS_CATEGORIA: Record<string, string> = {
-  CERVEZA: "Cerveza",
-  LICOR: "Licor",
-  COMIDA: "Comida",
-  COCTEL: "Cóctel",
-  OTRO: "Otro",
-};
-
 function toISODate(d: Date) {
   return d.toISOString().slice(0, 10);
 }
@@ -261,7 +253,7 @@ export function ReportesPage() {
             {categoriasQuery.data?.map((c) => (
               <BarraProporcional
                 key={c.categoria}
-                etiqueta={ETIQUETAS_CATEGORIA[c.categoria] ?? c.categoria}
+                etiqueta={c.categoria}
                 valor={c.total}
                 max={maxCategoria}
                 formato={formatoMoneda}

@@ -18,6 +18,7 @@ import ventaRoutes from "./modules/ventas/venta.routes";
 import reporteRoutes from "./modules/reportes/reporte.routes";
 import promocionRoutes from "./modules/promociones/promocion.routes";
 import clienteRoutes from "./modules/clientes/cliente.routes";
+import categoriaRoutes from "./modules/categorias/categoria.routes";
 
 const app = express();
 
@@ -43,6 +44,7 @@ app.use("/api/ventas", ventaRoutes);
 app.use("/api/reportes", reporteRoutes);
 app.use("/api/promociones", promocionRoutes);
 app.use("/api/clientes", clienteRoutes);
+app.use("/api/categorias", categoriaRoutes);
 
 /**
  * Sirve el frontend ya compilado (resultado de `npm run build` en

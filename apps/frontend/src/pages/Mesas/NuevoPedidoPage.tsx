@@ -1,20 +1,13 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "../../components/ui/Button";
+import { Input } from "../../components/ui/Input";
 import { obtenerEspacio } from "../../services/espacioService";
 import { crearPedido } from "../../services/pedidoService";
 import { listarProductos, ProductoDTO } from "../../services/productoService";
 import { ApiError } from "../../services/api";
 import { formatoMoneda } from "../../utils/format";
-
-const CATEGORIAS: { valor: string; etiqueta: string }[] = [
-  { valor: "CERVEZA", etiqueta: "Cervezas" },
-  { valor: "LICOR", etiqueta: "Licores" },
-  { valor: "COMIDA", etiqueta: "Comida" },
-  { valor: "COCTEL", etiqueta: "Cócteles" },
-  { valor: "OTRO", etiqueta: "Otros" },
-];
 
 interface ItemCarrito {
   producto: ProductoDTO;
@@ -66,7 +59,8 @@ export function NuevoPedidoPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const [categoriaActiva, setCategoriaActiva] = useState("CERVEZA");
+  const [categoriaActiva, setCategoriaActiva] = useState("");
+  const [busqueda, setBusqueda] = useState("");
   const [carrito, setCarrito] = useState<Record<string, ItemCarrito>>({});
   const [error, setError] = useState<string | null>(null);
 
@@ -81,16 +75,31 @@ export function NuevoPedidoPage() {
     queryFn: () => listarProductos({ activo: true }),
   });
 
+  // Las categorías salen directo de los productos que ya trajimos — no hay
+  // una lista fija que mantener: si agregas una categoría nueva y le pones
+  // productos, aparece sola aquí.
   const categoriasConProductos = useMemo(() => {
-    if (!productosQuery.data) return CATEGORIAS;
-    const disponibles = new Set(productosQuery.data.map((p) => p.categoria));
-    return CATEGORIAS.filter((c) => disponibles.has(c.valor));
+    if (!productosQuery.data) return [];
+    const mapa = new Map<string, string>();
+    for (const p of productosQuery.data) {
+      mapa.set(p.categoriaId, p.categoria.nombre);
+    }
+    return Array.from(mapa.entries()).map(([id, nombre]) => ({ id, nombre }));
   }, [productosQuery.data]);
 
-  const productosDeCategoria = useMemo(
-    () => (productosQuery.data ?? []).filter((p) => p.categoria === categoriaActiva),
-    [productosQuery.data, categoriaActiva]
-  );
+  useEffect(() => {
+    if (!categoriaActiva && categoriasConProductos.length > 0) {
+      setCategoriaActiva(categoriasConProductos[0].id);
+    }
+  }, [categoriaActiva, categoriasConProductos]);
+
+  const productosDeCategoria = useMemo(() => {
+    const todos = productosQuery.data ?? [];
+    if (busqueda.trim()) {
+      return todos.filter((p) => p.nombre.toLowerCase().includes(busqueda.trim().toLowerCase()));
+    }
+    return todos.filter((p) => p.categoriaId === categoriaActiva);
+  }, [productosQuery.data, categoriaActiva, busqueda]);
 
   const items = Object.values(carrito);
   const total = items.reduce((sum, i) => sum + i.producto.precio * i.cantidad, 0);
@@ -150,18 +159,26 @@ export function NuevoPedidoPage() {
           Nuevo pedido — {espacioQuery.data?.nombre}
         </h1>
 
+        <div className="mb-4 max-w-sm">
+          <Input
+            placeholder="Buscar producto..."
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+          />
+        </div>
+
         <div className="flex gap-2 mb-6 flex-wrap">
           {categoriasConProductos.map((c) => (
             <button
-              key={c.valor}
-              onClick={() => setCategoriaActiva(c.valor)}
+              key={c.id}
+              onClick={() => setCategoriaActiva(c.id)}
               className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                categoriaActiva === c.valor
+                categoriaActiva === c.id
                   ? "bg-rock text-ink"
                   : "bg-surface-raised text-ink-muted hover:text-ink"
               }`}
             >
-              {c.etiqueta}
+              {c.nombre}
             </button>
           ))}
         </div>

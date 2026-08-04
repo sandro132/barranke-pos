@@ -22,13 +22,9 @@ export enum EstadoEspacio {
   RESERVADA = "RESERVADA",
 }
 
-export enum CategoriaProducto {
-  CERVEZA = "CERVEZA",
-  LICOR = "LICOR",
-  COMIDA = "COMIDA",
-  COCTEL = "COCTEL",
-  OTRO = "OTRO",
-}
+// Nota: las categorías de producto (antes un enum fijo aquí) ahora son una
+// tabla real (`Categoria`) que se administra desde la app — ver el módulo
+// de categorías del backend. No hay enum que mantener.
 
 export enum UnidadMedida {
   UNIDAD = "UNIDAD",
@@ -93,15 +89,6 @@ export enum TipoPromocion {
   COMBO = "COMBO",
   DESCUENTO = "DESCUENTO",
 }
-
-// Prefijos usados para generar el código interno (SKU) automático por categoría
-export const PREFIJO_SKU_POR_CATEGORIA: Record<CategoriaProducto, string> = {
-  [CategoriaProducto.CERVEZA]: "CERV",
-  [CategoriaProducto.LICOR]: "LICO",
-  [CategoriaProducto.COMIDA]: "COMI",
-  [CategoriaProducto.COCTEL]: "COCT",
-  [CategoriaProducto.OTRO]: "OTRO",
-};
 
 // ---- DTOs de autenticación (contrato entre frontend y backend) ----
 

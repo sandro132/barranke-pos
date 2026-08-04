@@ -9,35 +9,55 @@ import { abrirEspacio, EspacioDTO, listarEspacios } from "../../services/espacio
 import { getSocket } from "../../sockets/socket";
 import { SOCKET_EVENTS } from "@barranke/shared";
 import { formatoMoneda } from "../../utils/format";
+import { EspacioFormModal } from "./EspacioFormModal";
 
-function EspacioCard({ espacio, onClick }: { espacio: EspacioDTO; onClick: () => void }) {
+function EspacioCard({
+  espacio,
+  onClick,
+  onEditar,
+}: {
+  espacio: EspacioDTO;
+  onClick: () => void;
+  onEditar: () => void;
+}) {
   const ocupada = espacio.estado === "OCUPADA";
 
   return (
-    <button
-      onClick={onClick}
-      className={`text-left rounded-lg border p-4 transition-colors ${
+    <div
+      className={`relative rounded-lg border p-4 transition-colors ${
         ocupada
           ? "border-rock bg-rock-dim/20 hover:bg-rock-dim/30"
           : "border-border bg-surface-raised hover:border-ink-muted"
       }`}
     >
-      <p className="font-display font-semibold text-ink">{espacio.nombre}</p>
-      {espacio.unidaA ? (
-        <p className="text-xs text-rock-bright mt-1">Unida a {espacio.unidaA}</p>
-      ) : ocupada ? (
-        <>
-          <p className="text-sm text-ink mt-1">{formatoMoneda(espacio.totalConsumido)}</p>
-          <p className="text-xs text-ink-muted mt-0.5">
-            Abierta hace {espacio.tiempoAbiertaMinutos} min
-            {espacio.descripcion ? ` · ${espacio.descripcion}` : ""}
-            {espacio.mesasUnidas.length > 0 && ` · +${espacio.mesasUnidas.length} unida(s)`}
-          </p>
-        </>
-      ) : (
-        <p className="text-xs text-ink-muted mt-1">Libre — toca para abrir</p>
-      )}
-    </button>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onEditar();
+        }}
+        aria-label={`Editar ${espacio.nombre}`}
+        className="absolute top-2 right-2 text-ink-muted hover:text-ink text-xs px-1.5 py-1 rounded hover:bg-surface"
+      >
+        ✎
+      </button>
+      <button onClick={onClick} className="text-left w-full pr-5">
+        <p className="font-display font-semibold text-ink">{espacio.nombre}</p>
+        {espacio.unidaA ? (
+          <p className="text-xs text-rock-bright mt-1">Unida a {espacio.unidaA}</p>
+        ) : ocupada ? (
+          <>
+            <p className="text-sm text-ink mt-1">{formatoMoneda(espacio.totalConsumido)}</p>
+            <p className="text-xs text-ink-muted mt-0.5">
+              Abierta hace {espacio.tiempoAbiertaMinutos} min
+              {espacio.descripcion ? ` · ${espacio.descripcion}` : ""}
+              {espacio.mesasUnidas.length > 0 && ` · +${espacio.mesasUnidas.length} unida(s)`}
+            </p>
+          </>
+        ) : (
+          <p className="text-xs text-ink-muted mt-1">Libre — toca para abrir</p>
+        )}
+      </button>
+    </div>
   );
 }
 
@@ -46,6 +66,9 @@ export function MesasPage() {
   const queryClient = useQueryClient();
   const [espacioParaAbrir, setEspacioParaAbrir] = useState<EspacioDTO | null>(null);
   const [descripcion, setDescripcion] = useState("");
+  const [modalFormAbierto, setModalFormAbierto] = useState(false);
+  const [espacioEditando, setEspacioEditando] = useState<EspacioDTO | null>(null);
+  const [tipoNuevo, setTipoNuevo] = useState<"MESA" | "BARRA">("MESA");
 
   const { data: espacios, isLoading } = useQuery({ queryKey: ["espacios"], queryFn: listarEspacios });
 
@@ -82,6 +105,17 @@ export function MesasPage() {
     }
   }
 
+  function abrirEdicion(espacio: EspacioDTO) {
+    setEspacioEditando(espacio);
+    setModalFormAbierto(true);
+  }
+
+  function abrirCreacion(tipo: "MESA" | "BARRA") {
+    setEspacioEditando(null);
+    setTipoNuevo(tipo);
+    setModalFormAbierto(true);
+  }
+
   function confirmarApertura() {
     if (!espacioParaAbrir) return;
     abrirMutation.mutate({
@@ -99,7 +133,9 @@ export function MesasPage() {
         <h1 className="font-display uppercase text-2xl font-bold tracking-wide text-ink">
           Mesas y Barras
         </h1>
-        <p className="text-ink-muted text-sm mt-1">Toca una mesa libre para abrirla, o una ocupada para ver el detalle</p>
+        <p className="text-ink-muted text-sm mt-1">
+          Toca una mesa libre para abrirla, una ocupada para ver el detalle, o el ✎ para editar su nombre
+        </p>
       </header>
 
       {isLoading ? (
@@ -107,23 +143,49 @@ export function MesasPage() {
       ) : (
         <div className="flex flex-col gap-6">
           <Card>
-            <h2 className="font-display uppercase text-sm font-semibold tracking-wide text-ink-muted mb-3">
-              Mesas
-            </h2>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-display uppercase text-sm font-semibold tracking-wide text-ink-muted">
+                Mesas
+              </h2>
+              <button
+                onClick={() => abrirCreacion("MESA")}
+                className="text-xs text-ink-muted hover:text-rock-bright underline"
+              >
+                + Nueva mesa
+              </button>
+            </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
               {mesas.map((e) => (
-                <EspacioCard key={e.id} espacio={e} onClick={() => handleClickEspacio(e)} />
+                <EspacioCard
+                  key={e.id}
+                  espacio={e}
+                  onClick={() => handleClickEspacio(e)}
+                  onEditar={() => abrirEdicion(e)}
+                />
               ))}
             </div>
           </Card>
 
           <Card>
-            <h2 className="font-display uppercase text-sm font-semibold tracking-wide text-ink-muted mb-3">
-              Barras
-            </h2>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-display uppercase text-sm font-semibold tracking-wide text-ink-muted">
+                Barras
+              </h2>
+              <button
+                onClick={() => abrirCreacion("BARRA")}
+                className="text-xs text-ink-muted hover:text-rock-bright underline"
+              >
+                + Nueva barra
+              </button>
+            </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
               {barras.map((e) => (
-                <EspacioCard key={e.id} espacio={e} onClick={() => handleClickEspacio(e)} />
+                <EspacioCard
+                  key={e.id}
+                  espacio={e}
+                  onClick={() => handleClickEspacio(e)}
+                  onEditar={() => abrirEdicion(e)}
+                />
               ))}
             </div>
           </Card>
@@ -152,6 +214,13 @@ export function MesasPage() {
           </Button>
         </div>
       </Modal>
+
+      <EspacioFormModal
+        open={modalFormAbierto}
+        onClose={() => setModalFormAbierto(false)}
+        editando={espacioEditando}
+        tipoPorDefecto={tipoNuevo}
+      />
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
+import { Input } from "../../components/ui/Input";
 import { formatoMoneda } from "../../utils/format";
 import {
   actualizarIngrediente,
@@ -23,11 +24,16 @@ export function IngredientesPage() {
   const [viendoHistorial, setViendoHistorial] = useState<IngredienteDTO | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [errorEliminar, setErrorEliminar] = useState<string | null>(null);
+  const [busqueda, setBusqueda] = useState("");
 
   const ingredientesQuery = useQuery({
     queryKey: ["ingredientes", "gestion"],
     queryFn: () => listarIngredientes(),
   });
+
+  const ingredientesFiltrados = (ingredientesQuery.data ?? []).filter((i) =>
+    i.nombre.toLowerCase().includes(busqueda.trim().toLowerCase())
+  );
 
   function invalidar() {
     queryClient.invalidateQueries({ predicate: (q) => q.queryKey[0] === "ingredientes" });
@@ -101,8 +107,19 @@ export function IngredientesPage() {
       {ingredientesQuery.isLoading ? (
         <p className="text-sm text-ink-muted">Cargando...</p>
       ) : (
-        <div className="flex flex-col gap-2">
-          {ingredientesQuery.data?.map((i) => (
+        <>
+          <div className="mb-4 max-w-sm">
+            <Input
+              placeholder="Buscar ingrediente por nombre..."
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+            />
+          </div>
+          {ingredientesFiltrados.length === 0 && (
+            <p className="text-sm text-ink-muted">No hay ingredientes que coincidan con "{busqueda}".</p>
+          )}
+          <div className="flex flex-col gap-2">
+            {ingredientesFiltrados.map((i) => (
             <Card key={i.id} className={i.stockBajo ? "border-rock" : ""}>
               <div className="flex items-center justify-between flex-wrap gap-3">
                 <div>
@@ -152,6 +169,7 @@ export function IngredientesPage() {
             </Card>
           ))}
         </div>
+        </>
       )}
 
       <IngredienteFormModal

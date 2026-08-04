@@ -387,6 +387,7 @@ export async function cerrarEspacio(
                   ? `Venta — ${espacio.nombre} (pago ${i + 1}/${listaPagos.length})`
                   : `Venta — ${espacio.nombre}`,
               usuarioId,
+              ventaId: venta.id,
             },
           });
         }

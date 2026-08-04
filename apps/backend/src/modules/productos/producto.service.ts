@@ -1,16 +1,26 @@
 import { prisma } from "../../lib/prisma";
 import { AppError } from "../../middlewares/errorHandler";
-import { PREFIJO_SKU_POR_CATEGORIA, CategoriaProducto } from "@barranke/shared";
 import { ActualizarProductoInput, CrearProductoInput } from "./producto.schema";
+
+const INCLUDE_PRODUCTO_COMPLETO = {
+  categoria: true,
+  receta: { include: { ingrediente: true } },
+};
 
 /**
  * Genera el siguiente código interno (SKU) disponible para una categoría,
- * ej: CERV-001, CERV-002, COCT-001...
+ * ej: CERV-001, CERV-002, MECA-001... usando el prefijo propio de esa
+ * categoría (que el usuario define al crearla, o se deriva automático).
  * Busca el número más alto ya usado en esa categoría y le suma 1,
  * en vez de contar filas, para no reutilizar códigos si se borra un producto.
  */
-async function generarSiguienteSku(categoria: CategoriaProducto): Promise<string> {
-  const prefijo = PREFIJO_SKU_POR_CATEGORIA[categoria];
+async function generarSiguienteSku(categoriaId: string): Promise<string> {
+  const categoria = await prisma.categoria.findUnique({ where: { id: categoriaId } });
+  if (!categoria) {
+    throw new AppError("Categoría no encontrada", 404);
+  }
+
+  const prefijo = categoria.prefijoSku;
 
   const productosDeLaCategoria = await prisma.producto.findMany({
     where: { codigoInterno: { startsWith: `${prefijo}-` } },
@@ -31,19 +41,19 @@ async function generarSiguienteSku(categoria: CategoriaProducto): Promise<string
 }
 
 export async function listarProductos(filtros: {
-  categoria?: CategoriaProducto;
+  categoriaId?: string;
   activo?: boolean;
   busqueda?: string;
 }) {
   return prisma.producto.findMany({
     where: {
-      categoria: filtros.categoria,
+      categoriaId: filtros.categoriaId,
       activo: filtros.activo,
       nombre: filtros.busqueda
         ? { contains: filtros.busqueda }
         : undefined,
     },
-    include: { receta: { include: { ingrediente: true } } },
+    include: INCLUDE_PRODUCTO_COMPLETO,
     orderBy: { nombre: "asc" },
   });
 }
@@ -51,7 +61,7 @@ export async function listarProductos(filtros: {
 export async function obtenerProductoPorId(id: string) {
   const producto = await prisma.producto.findUnique({
     where: { id },
-    include: { receta: { include: { ingrediente: true } } },
+    include: INCLUDE_PRODUCTO_COMPLETO,
   });
 
   if (!producto) {
@@ -62,12 +72,12 @@ export async function obtenerProductoPorId(id: string) {
 }
 
 export async function crearProducto(data: CrearProductoInput) {
-  const codigoInterno = await generarSiguienteSku(data.categoria);
+  const codigoInterno = await generarSiguienteSku(data.categoriaId);
 
   return prisma.producto.create({
     data: {
       nombre: data.nombre,
-      categoria: data.categoria,
+      categoriaId: data.categoriaId,
       precio: data.precio,
       costo: data.costo,
       stock: data.stock,
@@ -75,15 +85,23 @@ export async function crearProducto(data: CrearProductoInput) {
       imagenUrl: data.imagenUrl ?? null,
       codigoInterno,
     },
+    include: INCLUDE_PRODUCTO_COMPLETO,
   });
 }
 
 export async function actualizarProducto(id: string, data: ActualizarProductoInput) {
-  await obtenerProductoPorId(id); // valida que exista, si no lanza 404
+  const productoActual = await obtenerProductoPorId(id); // valida que exista, si no lanza 404
+
+  // Si se le cambió la categoría, el código (SKU) debe regenerarse con el
+  // prefijo de la categoría nueva — si no, quedaría con un prefijo que ya
+  // no coincide con la categoría real del producto (ej. "BEB-002" en Cerveza).
+  const cambioDeCategoria = data.categoriaId && data.categoriaId !== productoActual.categoriaId;
+  const codigoInterno = cambioDeCategoria ? await generarSiguienteSku(data.categoriaId!) : undefined;
 
   return prisma.producto.update({
     where: { id },
-    data,
+    data: { ...data, codigoInterno },
+    include: INCLUDE_PRODUCTO_COMPLETO,
   });
 }
 
@@ -98,6 +116,7 @@ export async function desactivarProducto(id: string) {
   return prisma.producto.update({
     where: { id },
     data: { activo: false },
+    include: INCLUDE_PRODUCTO_COMPLETO,
   });
 }
 
@@ -107,5 +126,6 @@ export async function reactivarProducto(id: string) {
   return prisma.producto.update({
     where: { id },
     data: { activo: true },
+    include: INCLUDE_PRODUCTO_COMPLETO,
   });
 }

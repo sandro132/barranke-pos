@@ -36,3 +36,14 @@ export function crearCompra(proveedor: string, factura: string | undefined, item
     body: { proveedor, factura, items },
   });
 }
+
+export function actualizarCompra(id: string, proveedor: string, factura?: string) {
+  return apiRequest<CompraDTO>(`/compras/${id}`, {
+    method: "PATCH",
+    body: { proveedor, factura },
+  });
+}
+
+export function anularCompra(id: string) {
+  return apiRequest<void>(`/compras/${id}`, { method: "DELETE" });
+}

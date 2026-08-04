@@ -1,20 +1,14 @@
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Modal } from "../../components/ui/Modal";
 import { Input } from "../../components/ui/Input";
 import { Button } from "../../components/ui/Button";
 import { ProductoDTO } from "../../services/productoService";
-
-const CATEGORIAS = [
-  { valor: "CERVEZA", etiqueta: "Cerveza" },
-  { valor: "LICOR", etiqueta: "Licor" },
-  { valor: "COMIDA", etiqueta: "Comida" },
-  { valor: "COCTEL", etiqueta: "Cóctel" },
-  { valor: "OTRO", etiqueta: "Otro" },
-];
+import { listarCategorias } from "../../services/categoriaService";
 
 export interface ProductoFormValues {
   nombre: string;
-  categoria: string;
+  categoriaId: string;
   precio: string;
   costo: string;
   stock: string;
@@ -23,7 +17,7 @@ export interface ProductoFormValues {
 
 const VALORES_VACIOS: ProductoFormValues = {
   nombre: "",
-  categoria: "CERVEZA",
+  categoriaId: "",
   precio: "",
   costo: "",
   stock: "0",
@@ -47,13 +41,19 @@ export function ProductoFormModal({
 }) {
   const [valores, setValores] = useState<ProductoFormValues>(VALORES_VACIOS);
 
+  const categoriasQuery = useQuery({
+    queryKey: ["categorias"],
+    queryFn: listarCategorias,
+    enabled: open,
+  });
+
   // Cada vez que se abre el modal, precarga los datos si es edición, o limpia si es creación.
   useEffect(() => {
     if (!open) return;
     if (productoEditando) {
       setValores({
         nombre: productoEditando.nombre,
-        categoria: productoEditando.categoria,
+        categoriaId: productoEditando.categoriaId,
         precio: String(productoEditando.precio),
         costo: String(productoEditando.costo),
         stock: String(productoEditando.stock),
@@ -64,16 +64,27 @@ export function ProductoFormModal({
     }
   }, [open, productoEditando]);
 
+  // Si es un producto nuevo y todavía no hay categoría elegida, preselecciona
+  // la primera de la lista en cuanto llega — para no dejar el select vacío.
+  useEffect(() => {
+    if (!productoEditando && !valores.categoriaId && categoriasQuery.data?.length) {
+      setValores((prev) => ({ ...prev, categoriaId: categoriasQuery.data[0].id }));
+    }
+  }, [categoriasQuery.data, productoEditando, valores.categoriaId]);
+
   function actualizar<K extends keyof ProductoFormValues>(campo: K, valor: string) {
     setValores((prev) => ({ ...prev, [campo]: valor }));
   }
 
   const esValido =
     valores.nombre.trim() !== "" &&
+    valores.categoriaId !== "" &&
     valores.unidad.trim() !== "" &&
     Number(valores.precio) > 0 &&
     Number(valores.costo) >= 0 &&
     Number(valores.stock) >= 0;
+
+  const categoriaSeleccionada = categoriasQuery.data?.find((c) => c.id === valores.categoriaId);
 
   return (
     <Modal open={open} onClose={onClose} title={productoEditando ? "Editar producto" : "Nuevo producto"}>
@@ -87,17 +98,24 @@ export function ProductoFormModal({
 
         <div className="flex flex-col gap-1.5">
           <label className="text-sm font-medium text-ink-muted">Categoría</label>
-          <select
-            value={valores.categoria}
-            onChange={(e) => actualizar("categoria", e.target.value)}
-            className="bg-surface border border-border rounded-md px-4 py-3 text-ink focus:border-rock transition-colors"
-          >
-            {CATEGORIAS.map((c) => (
-              <option key={c.valor} value={c.valor}>
-                {c.etiqueta}
-              </option>
-            ))}
-          </select>
+          {categoriasQuery.data?.length === 0 ? (
+            <p className="text-xs text-rock-bright">
+              No hay categorías creadas todavía. Usa el botón "Categorías" en la pantalla anterior para
+              crear una primero.
+            </p>
+          ) : (
+            <select
+              value={valores.categoriaId}
+              onChange={(e) => actualizar("categoriaId", e.target.value)}
+              className="bg-surface border border-border rounded-md px-4 py-3 text-ink focus:border-rock transition-colors"
+            >
+              {categoriasQuery.data?.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nombre}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-3">
@@ -137,9 +155,12 @@ export function ProductoFormModal({
         </div>
 
         <p className="text-xs text-ink-muted">
-          {valores.categoria === "COMIDA" || valores.categoria === "COCTEL"
-            ? "Si este producto usa receta (ingredientes), configúrala después de guardarlo, desde el botón \"Receta\"."
-            : "El stock aquí se descuenta directo con cada venta (no usa receta)."}
+          {categoriaSeleccionada?.areaPreparacion === "COCINA" ||
+          categoriaSeleccionada?.areaPreparacion === "BARRA"
+            ? `Los pedidos de esta categoría van a la pantalla de ${
+                categoriaSeleccionada.areaPreparacion === "COCINA" ? "Cocina" : "Barra"
+              }. Si este producto usa receta (ingredientes), configúrala después de guardarlo, desde el botón "Receta".`
+            : "Esta categoría se sirve directo (no pasa por cocina/barra). El stock se descuenta directo con cada venta."}
         </p>
 
         {error && <p className="text-sm text-rock-bright">{error}</p>}

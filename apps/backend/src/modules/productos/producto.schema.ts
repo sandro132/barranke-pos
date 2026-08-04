@@ -1,9 +1,8 @@
 import { z } from "zod";
-import { CategoriaProducto } from "@barranke/shared";
 
 export const crearProductoSchema = z.object({
   nombre: z.string().min(1, "El nombre es requerido"),
-  categoria: z.nativeEnum(CategoriaProducto),
+  categoriaId: z.string().min(1, "La categoría es requerida"),
   precio: z.number().positive("El precio debe ser mayor a 0"),
   costo: z.number().nonnegative("El costo no puede ser negativo"),
   // stock inicial: solo relevante para productos SIN receta (ej. cervezas). Opcional.
@@ -17,7 +16,7 @@ export const actualizarProductoSchema = crearProductoSchema.partial().extend({
 });
 
 export const listarProductosQuerySchema = z.object({
-  categoria: z.nativeEnum(CategoriaProducto).optional(),
+  categoriaId: z.string().optional(),
   activo: z
     .enum(["true", "false"])
     .optional()

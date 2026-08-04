@@ -20,4 +20,10 @@ export const crearCompraSchema = z.object({
   items: z.array(itemCompraInputSchema).min(1, "La compra debe tener al menos un ítem"),
 });
 
+export const actualizarCompraSchema = z.object({
+  proveedor: z.string().min(1).optional(),
+  factura: z.string().optional(),
+});
+
 export type CrearCompraInput = z.infer<typeof crearCompraSchema>;
+export type ActualizarCompraInput = z.infer<typeof actualizarCompraSchema>;

@@ -8,6 +8,7 @@ import { PrecuentaPage } from "./pages/Mesas/PrecuentaPage";
 import { CocinaPage } from "./pages/Cocina/CocinaPage";
 import { BarraPage } from "./pages/Barra/BarraPage";
 import { CajaPage } from "./pages/Caja/CajaPage";
+import { VentasPage } from "./pages/Ventas/VentasPage";
 import { ComprasPage } from "./pages/Compras/ComprasPage";
 import { NuevaCompraPage } from "./pages/Compras/NuevaCompraPage";
 import { ProductosPage } from "./pages/Productos/ProductosPage";
@@ -40,6 +41,7 @@ export function App() {
             <Route path="/cocina" element={<CocinaPage />} />
             <Route path="/barra" element={<BarraPage />} />
             <Route path="/caja" element={<CajaPage />} />
+            <Route path="/ventas" element={<VentasPage />} />
             <Route path="/caja/historial" element={<HistorialCajaPage />} />
             <Route path="/caja/historial/:id" element={<DetalleCajaHistorialPage />} />
             <Route path="/compras" element={<ComprasPage />} />

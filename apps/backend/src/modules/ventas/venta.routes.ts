@@ -6,6 +6,8 @@ const router = Router();
 
 router.use(requireAuth);
 
+router.get("/", ventaController.listarHandler);
 router.get("/:id/ticket", ventaController.obtenerTicketHandler);
+router.delete("/:id", ventaController.anularHandler);
 
 export default router;

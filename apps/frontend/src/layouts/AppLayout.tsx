@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { to: "/cocina", label: "Cocina" },
   { to: "/barra", label: "Barra" },
   { to: "/caja", label: "Caja" },
+  { to: "/ventas", label: "Ventas" },
   { to: "/compras", label: "Compras" },
   { to: "/reportes", label: "Reportes" },
   { to: "/promociones", label: "Promociones" },

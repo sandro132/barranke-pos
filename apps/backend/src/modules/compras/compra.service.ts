@@ -94,6 +94,7 @@ export async function crearCompra(data: CrearCompraInput) {
           motivo: `Compra a ${data.proveedor}`,
           productoId: item.productoId,
           ingredienteId: item.ingredienteId,
+          compraId: compra.id,
         },
       });
     }
@@ -102,4 +103,53 @@ export async function crearCompra(data: CrearCompraInput) {
   });
 
   return obtenerCompra(compraId);
+}
+
+/**
+ * Solo permite editar el proveedor y el número de factura — datos que no
+ * afectan el inventario, así que corregirlos es siempre seguro.
+ * Para corregir cantidades, costos o productos, hay que anular la compra
+ * y registrarla de nuevo bien: intentar "editar" esos valores implicaría
+ * recalcular con precisión cuánto stock sumar o quitar según la diferencia,
+ * lo cual es mucho más fácil de hacer mal que anular y rehacer.
+ */
+export async function actualizarCompra(id: string, data: { proveedor?: string; factura?: string }) {
+  await obtenerCompra(id);
+
+  return prisma.compra.update({
+    where: { id },
+    data,
+    include: INCLUDE_COMPRA_COMPLETA,
+  });
+}
+
+/**
+ * Anula una compra hecha por error, revirtiendo el stock que sumó (le resta
+ * a cada producto/ingrediente exactamente lo que esa compra le había sumado)
+ * y borra sus movimientos e ítems. No intenta restaurar el costo anterior
+ * del producto (si la compra actualizó el costo, ese cambio queda; es un
+ * detalle menor comparado con la exactitud del stock, que sí es crítica).
+ */
+export async function anularCompra(id: string) {
+  const compra = await obtenerCompra(id);
+
+  await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    for (const item of compra.items) {
+      if (item.productoId) {
+        await tx.producto.update({
+          where: { id: item.productoId },
+          data: { stock: { decrement: item.cantidad } },
+        });
+      } else if (item.ingredienteId) {
+        await tx.ingrediente.update({
+          where: { id: item.ingredienteId },
+          data: { stock: { decrement: item.cantidad } },
+        });
+      }
+    }
+
+    await tx.movimientoInventario.deleteMany({ where: { compraId: id } });
+    await tx.itemCompra.deleteMany({ where: { compraId: id } });
+    await tx.compra.delete({ where: { id } });
+  });
 }

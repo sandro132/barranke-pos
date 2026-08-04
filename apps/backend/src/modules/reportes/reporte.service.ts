@@ -66,7 +66,7 @@ async function obtenerItemsVendidos(desdeDate: Date, hastaDate: Date) {
         venta: { fecha: { gte: desdeDate, lte: hastaDate } },
       },
     },
-    include: { producto: true },
+    include: { producto: { include: { categoria: true } } },
   });
 }
 
@@ -82,7 +82,7 @@ export async function reporteProductos(desde?: string, hasta?: string) {
   for (const item of items) {
     const actual = porProducto.get(item.productoId) ?? {
       nombre: item.producto.nombre,
-      categoria: item.producto.categoria,
+      categoria: item.producto.categoria.nombre,
       cantidad: 0,
       ingresos: 0,
     };
@@ -93,10 +93,18 @@ export async function reporteProductos(desde?: string, hasta?: string) {
 
   // Incluye productos activos sin ventas en el rango en 0, para que
   // "menos vendidos" también muestre lo que no se ha movido nada.
-  const productosActivos = await prisma.producto.findMany({ where: { activo: true } });
+  const productosActivos = await prisma.producto.findMany({
+    where: { activo: true },
+    include: { categoria: true },
+  });
   for (const p of productosActivos) {
     if (!porProducto.has(p.id)) {
-      porProducto.set(p.id, { nombre: p.nombre, categoria: p.categoria, cantidad: 0, ingresos: 0 });
+      porProducto.set(p.id, {
+        nombre: p.nombre,
+        categoria: p.categoria.nombre,
+        cantidad: 0,
+        ingresos: 0,
+      });
     }
   }
 
@@ -148,10 +156,11 @@ export async function reporteCategorias(desde?: string, hasta?: string) {
 
   const porCategoria = new Map<string, { cantidad: number; total: number }>();
   for (const item of items) {
-    const actual = porCategoria.get(item.producto.categoria) ?? { cantidad: 0, total: 0 };
+    const nombreCategoria = item.producto.categoria.nombre;
+    const actual = porCategoria.get(nombreCategoria) ?? { cantidad: 0, total: 0 };
     actual.cantidad += item.cantidad;
     actual.total += Number(item.precioUnitario) * item.cantidad;
-    porCategoria.set(item.producto.categoria, actual);
+    porCategoria.set(nombreCategoria, actual);
   }
 
   return Array.from(porCategoria.entries()).map(([categoria, datos]) => ({ categoria, ...datos }));

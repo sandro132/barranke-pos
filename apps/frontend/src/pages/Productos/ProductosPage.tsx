@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card } from "../../components/ui/Card";
 import { Button } from "../../components/ui/Button";
+import { Input } from "../../components/ui/Input";
 import { formatoMoneda } from "../../utils/format";
 import {
   actualizarProducto,
@@ -14,24 +15,23 @@ import {
 import { ApiError } from "../../services/api";
 import { ProductoFormModal, ProductoFormValues } from "./ProductoFormModal";
 import { RecetaModal } from "./RecetaModal";
-
-const ETIQUETAS_CATEGORIA: Record<string, string> = {
-  CERVEZA: "Cerveza",
-  LICOR: "Licor",
-  COMIDA: "Comida",
-  COCTEL: "Cóctel",
-  OTRO: "Otro",
-};
+import { CategoriasModal } from "./CategoriasModal";
 
 export function ProductosPage() {
   const queryClient = useQueryClient();
   const [modalAbierto, setModalAbierto] = useState(false);
+  const [modalCategoriasAbierto, setModalCategoriasAbierto] = useState(false);
   const [productoEditando, setProductoEditando] = useState<ProductoDTO | null>(null);
   const [productoReceta, setProductoReceta] = useState<ProductoDTO | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [busqueda, setBusqueda] = useState("");
 
   // Trae todos, activos e inactivos, para poder reactivarlos desde acá.
   const productosQuery = useQuery({ queryKey: ["productos", "gestion"], queryFn: () => listarProductos() });
+
+  const productosFiltrados = (productosQuery.data ?? []).filter((p) =>
+    p.nombre.toLowerCase().includes(busqueda.trim().toLowerCase())
+  );
 
   function invalidarProductos() {
     queryClient.invalidateQueries({
@@ -43,7 +43,7 @@ export function ProductosPage() {
     mutationFn: (valores: ProductoFormValues) =>
       crearProducto({
         nombre: valores.nombre,
-        categoria: valores.categoria,
+        categoriaId: valores.categoriaId,
         precio: Number(valores.precio),
         costo: Number(valores.costo),
         stock: Number(valores.stock),
@@ -60,7 +60,7 @@ export function ProductosPage() {
     mutationFn: (valores: ProductoFormValues) =>
       actualizarProducto(productoEditando!.id, {
         nombre: valores.nombre,
-        categoria: valores.categoria,
+        categoriaId: valores.categoriaId,
         precio: Number(valores.precio),
         costo: Number(valores.costo),
         stock: Number(valores.stock),
@@ -98,26 +98,42 @@ export function ProductosPage() {
 
   return (
     <div className="p-8">
-      <header className="mb-6 flex items-start justify-between">
+      <header className="mb-6 flex items-start justify-between flex-wrap gap-3">
         <div>
           <h1 className="font-display uppercase text-2xl font-bold tracking-wide text-ink">Productos</h1>
-          <p className="text-ink-muted text-sm mt-1">Catálogo completo: cervezas, licores, comida y cócteles</p>
+          <p className="text-ink-muted text-sm mt-1">Catálogo completo — categorías 100% editables</p>
         </div>
-        <Button onClick={abrirCrear}>+ Nuevo producto</Button>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={() => setModalCategoriasAbierto(true)}>
+            Categorías
+          </Button>
+          <Button onClick={abrirCrear}>+ Nuevo producto</Button>
+        </div>
       </header>
 
       {productosQuery.isLoading ? (
         <p className="text-sm text-ink-muted">Cargando...</p>
       ) : (
-        <div className="flex flex-col gap-2">
-          {productosQuery.data?.map((p) => (
+        <>
+          <div className="mb-4 max-w-sm">
+            <Input
+              placeholder="Buscar producto por nombre..."
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+            />
+          </div>
+          {productosFiltrados.length === 0 && (
+            <p className="text-sm text-ink-muted">No hay productos que coincidan con "{busqueda}".</p>
+          )}
+          <div className="flex flex-col gap-2">
+            {productosFiltrados.map((p) => (
             <Card key={p.id} className={!p.activo ? "opacity-50" : ""}>
               <div className="flex items-center justify-between flex-wrap gap-3">
                 <div>
                   <div className="flex items-center gap-2">
                     <p className="font-medium text-ink">{p.nombre}</p>
                     <span className="text-xs text-ink-muted bg-surface-raised px-2 py-0.5 rounded">
-                      {ETIQUETAS_CATEGORIA[p.categoria] ?? p.categoria}
+                      {p.categoria.nombre}
                     </span>
                     <span className="text-xs text-ink-muted">{p.codigoInterno}</span>
                   </div>
@@ -156,6 +172,7 @@ export function ProductosPage() {
             </Card>
           ))}
         </div>
+        </>
       )}
 
       <ProductoFormModal
@@ -175,6 +192,7 @@ export function ProductosPage() {
       />
 
       <RecetaModal producto={productoReceta} onClose={() => setProductoReceta(null)} />
+      <CategoriasModal open={modalCategoriasAbierto} onClose={() => setModalCategoriasAbierto(false)} />
     </div>
   );
 }

@@ -1,10 +1,11 @@
 import { useNavigate, useParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { Card } from "../../components/ui/Card";
 import { Badge } from "../../components/ui/Badge";
 import { formatoMoneda } from "../../utils/format";
 import { obtenerDetalleCaja } from "../../services/cajaService";
+import { anularVenta } from "../../services/ventaService";
 
 const ETIQUETAS_METODO: Record<string, string> = {
   EFECTIVO: "Efectivo",
@@ -19,11 +20,21 @@ const ETIQUETAS_METODO: Record<string, string> = {
 export function DetalleCajaHistorialPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const { data: caja, isLoading } = useQuery({
     queryKey: ["caja", "historial", id],
     queryFn: () => obtenerDetalleCaja(id!),
     enabled: !!id,
+  });
+
+  const anularVentaMutation = useMutation({
+    mutationFn: (ventaId: string) => anularVenta(ventaId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["caja", "historial", id] });
+      queryClient.invalidateQueries({ predicate: (q) => q.queryKey[0] === "reportes" });
+      queryClient.invalidateQueries({ predicate: (q) => q.queryKey[0] === "clientes" });
+    },
   });
 
   if (isLoading || !caja) {
@@ -147,6 +158,21 @@ export function DetalleCajaHistorialPage() {
                   >
                     Ver ticket
                   </Link>
+                  <button
+                    onClick={() => {
+                      if (
+                        window.confirm(
+                          `¿Anular la venta de ${v.espacio.nombre} por ${formatoMoneda(v.total)}? Esto no se puede deshacer.`
+                        )
+                      ) {
+                        anularVentaMutation.mutate(v.id);
+                      }
+                    }}
+                    disabled={anularVentaMutation.isPending}
+                    className="text-xs text-ink-muted hover:text-rock-bright underline"
+                  >
+                    Anular
+                  </button>
                 </div>
               </div>
             ))}

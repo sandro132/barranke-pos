@@ -1,27 +1,10 @@
-import { Prisma, Producto, ItemPedido } from "@prisma/client";
+import { Prisma, ItemPedido } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 import { AppError } from "../../middlewares/errorHandler";
-import {
-  AreaPreparacion,
-  CategoriaProducto,
-  EstadoEspacio,
-  EstadoPedido,
-  SOCKET_EVENTS,
-} from "@barranke/shared";
+import { AreaPreparacion, EstadoEspacio, EstadoPedido, SOCKET_EVENTS } from "@barranke/shared";
 import { getIO } from "../../sockets/socketServer";
 import { ejecutarDescuentoVenta } from "../inventario/inventario.service";
 import { CrearPedidoInput } from "./pedido.schema";
-
-/**
- * Determina a qué pantalla (cocina, barra, o ninguna) debe ir un ítem según
- * la categoría del producto. Las cervezas y licores no requieren preparación,
- * así que no aparecen en ninguna pantalla de producción (van directo al mesero).
- */
-function determinarAreaPreparacion(categoria: string): string {
-  if (categoria === CategoriaProducto.COMIDA) return AreaPreparacion.COCINA;
-  if (categoria === CategoriaProducto.COCTEL) return AreaPreparacion.BARRA;
-  return AreaPreparacion.NINGUNA;
-}
 
 /**
  * Deriva el estado agregado de un pedido a partir del estado de todos sus ítems.
@@ -81,10 +64,11 @@ export async function crearPedido(usuarioId: string, data: CrearPedidoInput) {
     );
   }
 
-  const productos: Producto[] = await prisma.producto.findMany({
+  const productos = await prisma.producto.findMany({
     where: { id: { in: data.items.map((i) => i.productoId) } },
+    include: { categoria: true },
   });
-  const productosPorId = new Map<string, Producto>(productos.map((p) => [p.id, p]));
+  const productosPorId = new Map(productos.map((p) => [p.id, p]));
 
   for (const item of data.items) {
     const producto = productosPorId.get(item.productoId);
@@ -104,7 +88,9 @@ export async function crearPedido(usuarioId: string, data: CrearPedidoInput) {
     // pasaría por ahí, y se quedaría en PENDIENTE para siempre).
     const estadosIniciales = data.items.map((item) => {
       const producto = productosPorId.get(item.productoId)!;
-      const areaPreparacion = determinarAreaPreparacion(producto.categoria);
+      // El área de preparación ahora es una propiedad de la categoría misma
+      // (configurable por el usuario), no una comparación de texto fija.
+      const areaPreparacion = producto.categoria.areaPreparacion;
       const estado =
         areaPreparacion === AreaPreparacion.NINGUNA
           ? EstadoPedido.LISTO

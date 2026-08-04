@@ -32,6 +32,20 @@ export function listarEspacios() {
   return apiRequest<EspacioDTO[]>("/espacios");
 }
 
+export function crearEspacio(nombre: string, tipo: "MESA" | "BARRA", capacidad?: number) {
+  return apiRequest<EspacioDTO>("/espacios", {
+    method: "POST",
+    body: { nombre, tipo, capacidad },
+  });
+}
+
+export function actualizarEspacio(id: string, nombre: string, capacidad?: number | null) {
+  return apiRequest<EspacioDTO>(`/espacios/${id}`, {
+    method: "PATCH",
+    body: { nombre, capacidad },
+  });
+}
+
 export function obtenerEspacio(id: string) {
   return apiRequest<EspacioDTO>(`/espacios/${id}`);
 }

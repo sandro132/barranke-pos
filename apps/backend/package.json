@@ -9,9 +9,9 @@
     "start": "tsx src/server.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:seed": "tsx prisma/seed.ts",
     "prisma:studio": "prisma studio",
-    "backup": "node scripts/backup-db.js"
+    "backup": "node scripts/backup-db.js",
+    "reset:prueba": "tsx scripts/reset-datos-prueba.ts"
   },
   "dependencies": {
     "@barranke/shared": "*",

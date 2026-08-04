@@ -60,15 +60,38 @@ model Espacio {
 }
 
 // =========================
+// CATEGORÍAS
+// =========================
+
+// Antes las categorías eran una lista fija en el código (Cerveza, Licor,
+// Comida, Cóctel, Otro). Ahora son una tabla real: se crean, editan y
+// borran desde la app, sin tener que tocar código nunca más.
+model Categoria {
+  id     String @id @default(cuid())
+  nombre String @unique
+  // Prefijo para el código interno (SKU) automático de sus productos,
+  // ej. "MEC" para Mecato -> MEC-001, MEC-002...
+  prefijoSku String @unique
+  // A qué pantalla van los pedidos de productos de esta categoría:
+  // COCINA (se prepara), BARRA (se prepara), o NINGUNA (se sirve directo,
+  // como una cerveza — no requiere que nadie lo "prepare").
+  /// Valores válidos: COCINA | BARRA | NINGUNA
+  areaPreparacion String @default("NINGUNA")
+
+  productos Producto[]
+  createdAt DateTime   @default(now())
+}
+
+// =========================
 // PRODUCTOS
 // =========================
 
 model Producto {
   id String @id @default(cuid())
 
-  nombre String
-  /// Valores válidos: CERVEZA | LICOR | COMIDA | COCTEL | OTRO
-  categoria String
+  nombre      String
+  categoriaId String
+  categoria   Categoria @relation(fields: [categoriaId], references: [id])
   // Decimal para dinero en COP. En la práctica se maneja sin decimales (ej. 8000.00 = $8.000)
   precio        Decimal
   costo         Decimal
@@ -136,6 +159,12 @@ model MovimientoInventario {
   producto      Producto?    @relation(fields: [productoId], references: [id])
   ingredienteId String?
   ingrediente   Ingrediente? @relation(fields: [ingredienteId], references: [id])
+
+  // Si este movimiento vino de una compra, queda vinculado a ella — así, si
+  // la compra se anula después, se puede borrar exactamente estos
+  // movimientos y revertir el stock, sin adivinar cuáles son.
+  compraId String?
+  compra   Compra? @relation(fields: [compraId], references: [id])
 }
 
 // =========================
@@ -202,6 +231,7 @@ model Venta {
 
   pedidos           Pedido[]
   movimientoCuenta  MovimientoCuentaCliente?
+  movimientoCaja    MovimientoCaja?
 }
 
 // =========================
@@ -231,6 +261,12 @@ model MovimientoCaja {
   usuarioId   String
   usuario     Usuario  @relation(fields: [usuarioId], references: [id])
   fecha       DateTime @default(now())
+
+  // Si este movimiento vino de cerrar una mesa (tipo VENTA), queda vinculado
+  // a esa venta — así, si la venta se anula después, se puede borrar
+  // exactamente este movimiento, sin adivinar cuál es.
+  ventaId String? @unique
+  venta   Venta?  @relation(fields: [ventaId], references: [id])
 }
 
 // =========================
@@ -244,7 +280,8 @@ model Compra {
   fecha     DateTime @default(now())
   total     Decimal
 
-  items ItemCompra[]
+  items       ItemCompra[]
+  movimientos MovimientoInventario[]
 }
 
 model ItemCompra {
