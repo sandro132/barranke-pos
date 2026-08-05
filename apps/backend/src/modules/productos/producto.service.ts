@@ -81,6 +81,7 @@ export async function crearProducto(data: CrearProductoInput) {
       precio: data.precio,
       costo: data.costo,
       stock: data.stock,
+      stockMinimo: data.stockMinimo,
       unidad: data.unidad,
       imagenUrl: data.imagenUrl ?? null,
       codigoInterno,

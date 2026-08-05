@@ -47,6 +47,7 @@ export function ProductosPage() {
         precio: Number(valores.precio),
         costo: Number(valores.costo),
         stock: Number(valores.stock),
+        stockMinimo: Number(valores.stockMinimo),
         unidad: valores.unidad,
       }),
     onSuccess: () => {
@@ -64,6 +65,7 @@ export function ProductosPage() {
         precio: Number(valores.precio),
         costo: Number(valores.costo),
         stock: Number(valores.stock),
+        stockMinimo: Number(valores.stockMinimo),
         unidad: valores.unidad,
       }),
     onSuccess: () => {
@@ -136,6 +138,11 @@ export function ProductosPage() {
                       {p.categoria.nombre}
                     </span>
                     <span className="text-xs text-ink-muted">{p.codigoInterno}</span>
+                    {p.stockMinimo > 0 && p.stock <= p.stockMinimo && (
+                      <span className="text-xs text-rock-bright bg-rock-dim/30 px-2 py-0.5 rounded">
+                        Stock bajo
+                      </span>
+                    )}
                   </div>
                   <p className="text-xs text-ink-muted mt-1">
                     Precio {formatoMoneda(p.precio)} · Costo {formatoMoneda(p.costo)} · Stock {p.stock}{" "}

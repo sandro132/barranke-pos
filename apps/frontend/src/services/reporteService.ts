@@ -38,6 +38,7 @@ export interface CategoriaReporteDTO {
 
 export interface StockBajoReporteDTO {
   id: string;
+  tipo: "producto" | "ingrediente";
   nombre: string;
   stock: number;
   stockMinimo: number;
@@ -49,6 +50,13 @@ export interface InventarioReporteDTO {
   valorProductos: number;
   valorIngredientes: number;
   stockBajo: StockBajoReporteDTO[];
+}
+
+export interface ConsumoInternoReporteDTO {
+  totalCosto: number;
+  totalMovimientos: number;
+  porUsuario: { nombre: string; costo: number; cantidad: number }[];
+  porItem: { nombre: string; costo: number; cantidad: number }[];
 }
 
 function query(desde?: string, hasta?: string, extra?: Record<string, string>) {
@@ -86,4 +94,8 @@ export function obtenerCategoriasReporte(desde?: string, hasta?: string) {
 
 export function obtenerInventarioReporte() {
   return apiRequest<InventarioReporteDTO>(`/reportes/inventario`);
+}
+
+export function obtenerConsumoInternoReporte(desde?: string, hasta?: string) {
+  return apiRequest<ConsumoInternoReporteDTO>(`/reportes/consumo-interno${query(desde, hasta)}`);
 }

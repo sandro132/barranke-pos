@@ -10,7 +10,7 @@ import { ActualizarPromocionInput, CrearPromocionInput } from "./promocion.schem
  * Por ahora, "activa" es solo informativo.
  */
 export async function listarPromociones() {
-  return prisma.promocion.findMany({ orderBy: { nombre: "asc" } });
+  return prisma.promocion.findMany({ orderBy: { nombre: "asc" }, include: { producto: true } });
 }
 
 export async function obtenerPromocion(id: string) {

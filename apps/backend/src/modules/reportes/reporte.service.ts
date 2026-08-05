@@ -1,5 +1,5 @@
 import { prisma } from "../../lib/prisma";
-import { EstadoPedido } from "@barranke/shared";
+import { EstadoPedido, TipoMovimientoInventario } from "@barranke/shared";
 
 /**
  * Todos los reportes reciben un rango de fechas opcional (desde/hasta, formato
@@ -178,20 +178,89 @@ export async function reporteInventario() {
     0
   );
 
-  const stockBajo = ingredientes
+  const stockBajoIngredientes = ingredientes
     .filter((i) => Number(i.stock) <= Number(i.stockMinimo))
     .map((i) => ({
       id: i.id,
+      tipo: "ingrediente" as const,
       nombre: i.nombre,
       stock: Number(i.stock),
       stockMinimo: Number(i.stockMinimo),
       unidad: i.unidad,
     }));
 
+  // Solo alerta productos que de verdad configuraron un mínimo (stockMinimo > 0)
+  // — a diferencia de ingredientes, muchos productos no llevan control de
+  // stock mínimo y no tendría sentido alertar por defecto en 0.
+  const stockBajoProductos = productos
+    .filter((p) => Number(p.stockMinimo) > 0 && Number(p.stock) <= Number(p.stockMinimo))
+    .map((p) => ({
+      id: p.id,
+      tipo: "producto" as const,
+      nombre: p.nombre,
+      stock: Number(p.stock),
+      stockMinimo: Number(p.stockMinimo),
+      unidad: p.unidad,
+    }));
+
+  const stockBajo = [...stockBajoProductos, ...stockBajoIngredientes];
+
   return {
     valorTotal: valorProductos + valorIngredientes,
     valorProductos,
     valorIngredientes,
     stockBajo,
+  };
+}
+
+/**
+ * Cuánto le "costó" al bar el consumo interno del personal en un rango de
+ * fechas — usando el costo ACTUAL de cada producto/ingrediente (no el que
+ * tenía el día exacto del consumo, ya que no se guarda un histórico de
+ * costos). Es una aproximación razonable: sirve para ver la magnitud del
+ * gasto, no para un centavo exacto de contabilidad.
+ */
+export async function reporteConsumoInterno(desde?: string, hasta?: string) {
+  const { desdeDate, hastaDate } = resolverRango(desde, hasta);
+
+  const movimientos = await prisma.movimientoInventario.findMany({
+    where: {
+      tipo: TipoMovimientoInventario.CONSUMO_INTERNO,
+      fecha: { gte: desdeDate, lte: hastaDate },
+    },
+    include: {
+      producto: { select: { nombre: true, costo: true } },
+      ingrediente: { select: { nombre: true, costoUnitario: true } },
+      usuario: { select: { nombre: true } },
+    },
+  });
+
+  let totalCosto = 0;
+  const porUsuario = new Map<string, { nombre: string; costo: number; cantidad: number }>();
+  const porItem = new Map<string, { nombre: string; costo: number; cantidad: number }>();
+
+  for (const m of movimientos) {
+    const costoUnitario = m.producto ? Number(m.producto.costo) : Number(m.ingrediente?.costoUnitario ?? 0);
+    const costo = costoUnitario * Number(m.cantidad);
+    totalCosto += costo;
+
+    const nombreUsuario = m.usuario?.nombre ?? "Sin usuario";
+    const actualUsuario = porUsuario.get(nombreUsuario) ?? { nombre: nombreUsuario, costo: 0, cantidad: 0 };
+    actualUsuario.costo += costo;
+    actualUsuario.cantidad += 1;
+    porUsuario.set(nombreUsuario, actualUsuario);
+
+    const nombreItem = m.producto?.nombre ?? m.ingrediente?.nombre ?? "—";
+    const actualItem = porItem.get(nombreItem) ?? { nombre: nombreItem, costo: 0, cantidad: 0 };
+    actualItem.costo += costo;
+    actualItem.cantidad += Number(m.cantidad);
+    porItem.set(nombreItem, actualItem);
+  }
+
+  return {
+    totalCosto,
+    totalMovimientos: movimientos.length,
+    porUsuario: Array.from(porUsuario.values()).sort((a, b) => b.costo - a.costo),
+    porItem: Array.from(porItem.values()).sort((a, b) => b.costo - a.costo),
   };
 }

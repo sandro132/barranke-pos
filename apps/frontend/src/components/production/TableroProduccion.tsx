@@ -1,6 +1,8 @@
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { ItemPedidoDTO, actualizarEstadoItem } from "../../services/pedidoService";
 import { usePedidoRealtime } from "../../hooks/usePedidoRealtime";
+import { useAlertaProduccion } from "../../hooks/useAlertaProduccion";
+import { Button } from "../ui/Button";
 import { ItemProduccionCard } from "./ItemProduccionCard";
 
 const COLUMNAS = [
@@ -11,10 +13,12 @@ const COLUMNAS = [
 
 export function TableroProduccion({
   titulo,
+  area,
   queryKey,
   queryFn,
 }: {
   titulo: string;
+  area: "COCINA" | "BARRA";
   queryKey: string[];
   queryFn: () => Promise<ItemPedidoDTO[]>;
 }) {
@@ -23,6 +27,7 @@ export function TableroProduccion({
   const { data, isLoading } = useQuery({ queryKey, queryFn });
 
   usePedidoRealtime([queryKey]);
+  const { permisoConcedido, activarAlertas } = useAlertaProduccion(area);
 
   const cambiarEstadoMutation = useMutation({
     mutationFn: ({ itemId, estado }: { itemId: string; estado: string }) =>
@@ -36,11 +41,18 @@ export function TableroProduccion({
 
   return (
     <div className="p-8 h-screen flex flex-col">
-      <header className="mb-6">
-        <h1 className="font-display uppercase text-2xl font-bold tracking-wide text-ink">
-          {titulo}
-        </h1>
-        <p className="text-ink-muted text-sm mt-1">Se actualiza solo, en tiempo real</p>
+      <header className="mb-6 flex items-start justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="font-display uppercase text-2xl font-bold tracking-wide text-ink">
+            {titulo}
+          </h1>
+          <p className="text-ink-muted text-sm mt-1">Se actualiza solo, en tiempo real</p>
+        </div>
+        {!permisoConcedido && (
+          <Button variant="secondary" onClick={activarAlertas}>
+            🔔 Activar alertas de sonido
+          </Button>
+        )}
       </header>
 
       {isLoading ? (

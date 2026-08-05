@@ -12,6 +12,7 @@ export interface ProductoFormValues {
   precio: string;
   costo: string;
   stock: string;
+  stockMinimo: string;
   unidad: string;
 }
 
@@ -21,6 +22,7 @@ const VALORES_VACIOS: ProductoFormValues = {
   precio: "",
   costo: "",
   stock: "0",
+  stockMinimo: "0",
   unidad: "unidad",
 };
 
@@ -57,6 +59,7 @@ export function ProductoFormModal({
         precio: String(productoEditando.precio),
         costo: String(productoEditando.costo),
         stock: String(productoEditando.stock),
+        stockMinimo: String(productoEditando.stockMinimo),
         unidad: productoEditando.unidad,
       });
     } else {
@@ -153,6 +156,15 @@ export function ProductoFormModal({
             onChange={(e) => actualizar("unidad", e.target.value)}
           />
         </div>
+
+        <Input
+          type="number"
+          min={0}
+          label="Stock mínimo (alerta cuando baje de aquí — deja en 0 para no alertar)"
+          placeholder="0"
+          value={valores.stockMinimo}
+          onChange={(e) => actualizar("stockMinimo", e.target.value)}
+        />
 
         <p className="text-xs text-ink-muted">
           {categoriaSeleccionada?.areaPreparacion === "COCINA" ||

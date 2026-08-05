@@ -8,6 +8,7 @@ export interface ProductoDTO {
   precio: number;
   costo: number;
   stock: number;
+  stockMinimo: number;
   unidad: string;
   activo: boolean;
   codigoInterno: string;
@@ -19,6 +20,7 @@ export interface CrearProductoInput {
   precio: number;
   costo: number;
   stock: number;
+  stockMinimo: number;
   unidad: string;
 }
 

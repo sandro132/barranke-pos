@@ -73,6 +73,10 @@ export enum TipoMovimientoInventario {
   AJUSTE = "AJUSTE",
   VENTA = "VENTA",
   COMPRA = "COMPRA",
+  // Cuando alguien del personal toma un producto/ingrediente sin pagarlo
+  // (cortesía, consumo propio). Se descuenta del inventario, pero queda
+  // separado de las ventas reales para no ensuciar los reportes de ingresos.
+  CONSUMO_INTERNO = "CONSUMO_INTERNO",
 }
 
 export enum TipoMovimientoCaja {

@@ -28,9 +28,10 @@ model Usuario {
   activo    Boolean  @default(true)
   createdAt DateTime @default(now())
 
-  pedidos         Pedido[]
-  movimientosCaja MovimientoCaja[]
-  ventas          Venta[]
+  pedidos               Pedido[]
+  movimientosCaja       MovimientoCaja[]
+  ventas                Venta[]
+  movimientosInventario MovimientoInventario[]
 }
 
 // =========================
@@ -96,6 +97,7 @@ model Producto {
   precio        Decimal
   costo         Decimal
   stock         Decimal @default(0) // relevante solo si no tiene receta (ej. cerveza)
+  stockMinimo   Decimal @default(0) // para la alerta de "stock bajo" (0 = sin alerta)
   unidad        String
   imagenUrl     String?
   activo        Boolean @default(true)
@@ -105,6 +107,7 @@ model Producto {
   itemsPedido ItemPedido[]
   movimientos MovimientoInventario[]
   itemsCompra ItemCompra[]
+  promociones Promocion[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -149,7 +152,7 @@ model RecetaItem {
 model MovimientoInventario {
   id String @id @default(cuid())
 
-  /// Valores válidos: ENTRADA | SALIDA | AJUSTE | VENTA | COMPRA
+  /// Valores válidos: ENTRADA | SALIDA | AJUSTE | VENTA | COMPRA | CONSUMO_INTERNO
   tipo     String
   cantidad Decimal
   motivo   String?
@@ -165,6 +168,12 @@ model MovimientoInventario {
   // movimientos y revertir el stock, sin adivinar cuáles son.
   compraId String?
   compra   Compra? @relation(fields: [compraId], references: [id])
+
+  // Quién lo hizo (relevante sobre todo para CONSUMO_INTERNO, para saber a
+  // quién preguntarle si algo no cuadra). Nulo en movimientos automáticos
+  // del sistema (ventas, compras) donde no aplica una persona puntual.
+  usuarioId String?
+  usuario   Usuario? @relation(fields: [usuarioId], references: [id])
 }
 
 // =========================
@@ -300,6 +309,9 @@ model ItemCompra {
 // PROMOCIONES (preparado, no activo aún)
 // =========================
 
+// Ahora sí conectada al flujo real de pedidos (antes solo se podían crear,
+// no se aplicaban a nada). Por ahora solo el tipo COMBO se aplica de verdad
+// ("N unidades por $X"); los demás tipos siguen guardándose para el futuro.
 model Promocion {
   id String @id @default(cuid())
 
@@ -311,6 +323,13 @@ model Promocion {
   horaFin    String?
   diasSemana String?
   valor      Decimal?
+
+  // Solo aplica para tipo COMBO: a qué producto, cuántas unidades, y a qué
+  // precio total ese combo (ej. 5 empanadas por $6.000).
+  productoId        String?
+  producto          Producto? @relation(fields: [productoId], references: [id])
+  cantidadRequerida Int?
+  precioCombo       Decimal?
 }
 
 // =========================

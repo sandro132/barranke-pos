@@ -9,6 +9,10 @@ export interface PromocionDTO {
   horaFin: string | null;
   diasSemana: string | null;
   valor: number | null;
+  productoId: string | null;
+  producto: { id: string; nombre: string } | null;
+  cantidadRequerida: number | null;
+  precioCombo: number | null;
 }
 
 export interface PromocionInput {
@@ -19,6 +23,9 @@ export interface PromocionInput {
   horaFin?: string;
   diasSemana?: string;
   valor?: number;
+  productoId?: string;
+  cantidadRequerida?: number;
+  precioCombo?: number;
 }
 
 export function listarPromociones() {

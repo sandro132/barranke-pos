@@ -6,6 +6,7 @@ import { Input } from "../../components/ui/Input";
 import { obtenerEspacio } from "../../services/espacioService";
 import { crearPedido } from "../../services/pedidoService";
 import { listarProductos, ProductoDTO } from "../../services/productoService";
+import { listarPromociones } from "../../services/promocionService";
 import { ApiError } from "../../services/api";
 import { formatoMoneda } from "../../utils/format";
 
@@ -14,9 +15,10 @@ interface ItemCarrito {
   cantidad: number;
 }
 
-function ProductoBoton({ producto, cantidad, onSumar, onRestar }: {
+function ProductoBoton({ producto, cantidad, combo, onSumar, onRestar }: {
   producto: ProductoDTO;
   cantidad: number;
+  combo?: { cantidadRequerida: number; precioCombo: number };
   onSumar: () => void;
   onRestar: () => void;
 }) {
@@ -29,6 +31,11 @@ function ProductoBoton({ producto, cantidad, onSumar, onRestar }: {
       <button onClick={onSumar} className="text-left flex-1">
         <p className="text-sm font-medium text-ink leading-tight">{producto.nombre}</p>
         <p className="text-xs text-ink-muted mt-1">{formatoMoneda(producto.precio)}</p>
+        {combo && (
+          <p className="text-xs text-rock-bright mt-0.5 font-medium">
+            Promo: {combo.cantidadRequerida}× por {formatoMoneda(combo.precioCombo)}
+          </p>
+        )}
       </button>
 
       {cantidad > 0 && (
@@ -75,6 +82,24 @@ export function NuevoPedidoPage() {
     queryFn: () => listarProductos({ activo: true }),
   });
 
+  const promocionesQuery = useQuery({
+    queryKey: ["promociones"],
+    queryFn: listarPromociones,
+  });
+
+  const combosPorProducto = useMemo(() => {
+    const mapa = new Map<string, { cantidadRequerida: number; precioCombo: number }>();
+    for (const promo of promocionesQuery.data ?? []) {
+      if (promo.tipo === "COMBO" && promo.activa && promo.productoId && promo.cantidadRequerida && promo.precioCombo) {
+        mapa.set(promo.productoId, {
+          cantidadRequerida: promo.cantidadRequerida,
+          precioCombo: promo.precioCombo,
+        });
+      }
+    }
+    return mapa;
+  }, [promocionesQuery.data]);
+
   // Las categorías salen directo de los productos que ya trajimos — no hay
   // una lista fija que mantener: si agregas una categoría nueva y le pones
   // productos, aparece sola aquí.
@@ -101,8 +126,18 @@ export function NuevoPedidoPage() {
     return todos.filter((p) => p.categoriaId === categoriaActiva);
   }, [productosQuery.data, categoriaActiva, busqueda]);
 
+  function calcularSubtotalItem(item: ItemCarrito): number {
+    const combo = combosPorProducto.get(item.producto.id);
+    if (combo && item.cantidad >= combo.cantidadRequerida) {
+      const grupos = Math.floor(item.cantidad / combo.cantidadRequerida);
+      const resto = item.cantidad % combo.cantidadRequerida;
+      return grupos * combo.precioCombo + resto * item.producto.precio;
+    }
+    return item.producto.precio * item.cantidad;
+  }
+
   const items = Object.values(carrito);
-  const total = items.reduce((sum, i) => sum + i.producto.precio * i.cantidad, 0);
+  const total = items.reduce((sum, i) => sum + calcularSubtotalItem(i), 0);
   const cantidadTotal = items.reduce((sum, i) => sum + i.cantidad, 0);
 
   function sumar(producto: ProductoDTO) {
@@ -192,6 +227,7 @@ export function NuevoPedidoPage() {
                 key={p.id}
                 producto={p}
                 cantidad={carrito[p.id]?.cantidad ?? 0}
+                combo={combosPorProducto.get(p.id)}
                 onSumar={() => sumar(p)}
                 onRestar={() => restar(p)}
               />
@@ -219,7 +255,7 @@ export function NuevoPedidoPage() {
                     {item.cantidad}× {item.producto.nombre}
                   </span>
                   <span className="text-ink-muted">
-                    {formatoMoneda(item.producto.precio * item.cantidad)}
+                    {formatoMoneda(calcularSubtotalItem(item))}
                   </span>
                 </li>
               ))}

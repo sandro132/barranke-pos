@@ -42,3 +42,9 @@ export const inventarioHandler = asyncHandler(async (_req: Request, res: Respons
   const datos = await reporteService.reporteInventario();
   res.json(datos);
 });
+
+export const consumoInternoHandler = asyncHandler(async (req: Request, res: Response) => {
+  const { desde, hasta } = rango(req);
+  const datos = await reporteService.reporteConsumoInterno(desde, hasta);
+  res.json(datos);
+});

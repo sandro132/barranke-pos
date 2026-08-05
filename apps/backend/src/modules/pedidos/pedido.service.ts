@@ -1,7 +1,7 @@
 import { Prisma, ItemPedido } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 import { AppError } from "../../middlewares/errorHandler";
-import { AreaPreparacion, EstadoEspacio, EstadoPedido, SOCKET_EVENTS } from "@barranke/shared";
+import { AreaPreparacion, EstadoEspacio, EstadoPedido, SOCKET_EVENTS, TipoPromocion } from "@barranke/shared";
 import { getIO } from "../../sockets/socketServer";
 import { ejecutarDescuentoVenta } from "../inventario/inventario.service";
 import { CrearPedidoInput } from "./pedido.schema";
@@ -80,14 +80,68 @@ export async function crearPedido(usuarioId: string, data: CrearPedidoInput) {
     }
   }
 
+  // Busca promos de combo activas para los productos del carrito (ej. "5
+  // empanadas por $6.000"). Si el mesero agrega la cantidad suficiente,
+  // se cobra el precio del combo automáticamente — no hay que activar nada
+  // a mano. Lo que sobre de la cantidad requerida se cobra a precio normal.
+  const promocionesCombo = await prisma.promocion.findMany({
+    where: {
+      tipo: TipoPromocion.COMBO,
+      activa: true,
+      productoId: { in: data.items.map((i) => i.productoId) },
+    },
+  });
+  const comboPorProducto = new Map(promocionesCombo.map((p) => [p.productoId!, p]));
+
+  interface LineaPedido {
+    productoId: string;
+    cantidad: number;
+    precioUnitario: number;
+    notas?: string;
+  }
+
+  const lineas: LineaPedido[] = [];
+  for (const item of data.items) {
+    const producto = productosPorId.get(item.productoId)!;
+    const combo = comboPorProducto.get(item.productoId);
+
+    if (combo?.cantidadRequerida && combo.precioCombo && item.cantidad >= combo.cantidadRequerida) {
+      const grupos = Math.floor(item.cantidad / combo.cantidadRequerida);
+      const resto = item.cantidad % combo.cantidadRequerida;
+      const precioPorUnidadCombo = Number(combo.precioCombo) / combo.cantidadRequerida;
+
+      lineas.push({
+        productoId: item.productoId,
+        cantidad: grupos * combo.cantidadRequerida,
+        precioUnitario: precioPorUnidadCombo,
+        notas: `Promo: ${combo.nombre}`,
+      });
+      if (resto > 0) {
+        lineas.push({
+          productoId: item.productoId,
+          cantidad: resto,
+          precioUnitario: Number(producto.precio),
+          notas: item.notas,
+        });
+      }
+    } else {
+      lineas.push({
+        productoId: item.productoId,
+        cantidad: item.cantidad,
+        precioUnitario: Number(producto.precio),
+        notas: item.notas,
+      });
+    }
+  }
+
   const pedidoId = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-    // Calcula primero los estados iniciales de cada ítem (según si necesita
+    // Calcula primero los estados iniciales de cada línea (según si necesita
     // preparación o no), para poder crear el pedido ya con su estado agregado
     // correcto desde el principio — en vez de asumir PENDIENTE y esperar a que
     // alguien en cocina/barra lo cambie (un pedido de solo cervezas nunca
     // pasaría por ahí, y se quedaría en PENDIENTE para siempre).
-    const estadosIniciales = data.items.map((item) => {
-      const producto = productosPorId.get(item.productoId)!;
+    const estadosIniciales = lineas.map((linea) => {
+      const producto = productosPorId.get(linea.productoId)!;
       // El área de preparación ahora es una propiedad de la categoría misma
       // (configurable por el usuario), no una comparación de texto fija.
       const areaPreparacion = producto.categoria.areaPreparacion;
@@ -106,25 +160,25 @@ export async function crearPedido(usuarioId: string, data: CrearPedidoInput) {
       },
     });
 
-    for (let i = 0; i < data.items.length; i++) {
-      const item = data.items[i];
-      const producto = productosPorId.get(item.productoId)!;
+    for (let i = 0; i < lineas.length; i++) {
+      const linea = lineas[i];
+      const producto = productosPorId.get(linea.productoId)!;
       const { areaPreparacion, estado } = estadosIniciales[i];
 
       await tx.itemPedido.create({
         data: {
           pedidoId: pedido.id,
           productoId: producto.id,
-          cantidad: item.cantidad,
-          precioUnitario: producto.precio,
+          cantidad: linea.cantidad,
+          precioUnitario: linea.precioUnitario,
           areaPreparacion,
           estado,
-          notas: item.notas,
+          notas: linea.notas,
         },
       });
 
       // Descuenta el inventario (receta o stock directo) dentro de esta misma transacción.
-      await ejecutarDescuentoVenta(tx, producto.id, item.cantidad);
+      await ejecutarDescuentoVenta(tx, producto.id, linea.cantidad);
     }
 
     return pedido.id;
@@ -209,7 +263,7 @@ export async function actualizarEstadoItem(itemId: string, nuevoEstado: string) 
   const itemActualizado = await prisma.itemPedido.update({
     where: { id: itemId },
     data: { estado: nuevoEstado },
-    include: { producto: true },
+    include: { producto: true, pedido: { include: { espacio: true } } },
   });
 
   const pedidoActualizado = await sincronizarEstadoPedido(item.pedidoId);

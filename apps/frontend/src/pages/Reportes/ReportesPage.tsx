@@ -13,6 +13,7 @@ import { Card } from "../../components/ui/Card";
 import { formatoMoneda } from "../../utils/format";
 import {
   obtenerCategoriasReporte,
+  obtenerConsumoInternoReporte,
   obtenerGanancias,
   obtenerInventarioReporte,
   obtenerMetodosPagoReporte,
@@ -100,6 +101,10 @@ export function ReportesPage() {
   const inventarioQuery = useQuery({
     queryKey: ["reportes", "inventario"],
     queryFn: obtenerInventarioReporte,
+  });
+  const consumoInternoQuery = useQuery({
+    queryKey: ["reportes", "consumo-interno", desde, hasta],
+    queryFn: () => obtenerConsumoInternoReporte(desde, hasta),
   });
 
   const maxMetodo = Math.max(1, ...(metodosQuery.data ?? []).map((m) => m.total));
@@ -297,7 +302,12 @@ export function ReportesPage() {
                 <ul className="flex flex-col gap-1">
                   {inventarioQuery.data.stockBajo.map((i) => (
                     <li key={i.id} className="text-sm text-ink-muted flex justify-between">
-                      <span>{i.nombre}</span>
+                      <span>
+                        {i.nombre}{" "}
+                        <span className="text-xs opacity-70">
+                          ({i.tipo === "producto" ? "producto" : "ingrediente"})
+                        </span>
+                      </span>
                       <span>
                         {i.stock} {i.unidad.toLowerCase()} (mínimo: {i.stockMinimo})
                       </span>
@@ -306,6 +316,52 @@ export function ReportesPage() {
                 </ul>
               </div>
             )}
+          </>
+        )}
+      </Card>
+
+      <Card className="mt-6">
+        <h2 className="font-display uppercase text-sm font-semibold tracking-wide text-ink-muted mb-4">
+          Consumo interno del personal
+        </h2>
+        {consumoInternoQuery.isLoading ? (
+          <p className="text-sm text-ink-muted">Cargando...</p>
+        ) : consumoInternoQuery.data?.totalMovimientos === 0 ? (
+          <p className="text-sm text-ink-muted">Sin consumo interno registrado en este rango.</p>
+        ) : (
+          <>
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-ink-muted text-sm">Costo total en el rango</span>
+              <span className="font-display text-2xl font-bold text-rock-bright">
+                {formatoMoneda(consumoInternoQuery.data?.totalCosto ?? 0)}
+              </span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <p className="text-xs text-ink-muted uppercase tracking-wide mb-2">Por persona</p>
+                <ul className="flex flex-col gap-1.5">
+                  {consumoInternoQuery.data?.porUsuario.map((u) => (
+                    <li key={u.nombre} className="text-sm flex justify-between">
+                      <span className="text-ink">{u.nombre}</span>
+                      <span className="text-ink-muted">{formatoMoneda(u.costo)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <p className="text-xs text-ink-muted uppercase tracking-wide mb-2">Qué se consumió</p>
+                <ul className="flex flex-col gap-1.5">
+                  {consumoInternoQuery.data?.porItem.map((i) => (
+                    <li key={i.nombre} className="text-sm flex justify-between">
+                      <span className="text-ink">
+                        {i.nombre} ({i.cantidad})
+                      </span>
+                      <span className="text-ink-muted">{formatoMoneda(i.costo)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
           </>
         )}
       </Card>

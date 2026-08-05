@@ -7,6 +7,7 @@ export const crearProductoSchema = z.object({
   costo: z.number().nonnegative("El costo no puede ser negativo"),
   // stock inicial: solo relevante para productos SIN receta (ej. cervezas). Opcional.
   stock: z.number().nonnegative().default(0),
+  stockMinimo: z.number().nonnegative().default(0),
   unidad: z.string().min(1, "La unidad es requerida"),
   imagenUrl: z.string().url().optional().nullable(),
 });
