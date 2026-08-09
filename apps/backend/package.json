@@ -11,7 +11,8 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "backup": "node scripts/backup-db.js",
-    "reset:prueba": "tsx scripts/reset-datos-prueba.ts"
+    "reset:prueba": "tsx scripts/reset-datos-prueba.ts",
+    "migrar:cuentas": "tsx scripts/migrar-a-cuentas.ts"
   },
   "dependencies": {
     "@barranke/shared": "*",

@@ -264,3 +264,58 @@ export async function reporteConsumoInterno(desde?: string, hasta?: string) {
     porItem: Array.from(porItem.values()).sort((a, b) => b.costo - a.costo),
   };
 }
+
+/**
+ * Cuánto se ha gastado en compras en un rango de fechas, desglosado por
+ * proveedor y por producto/ingrediente comprado — para responder "¿a quién
+ * le compro más?" y "¿qué estoy comprando más seguido?".
+ */
+export async function reporteCompras(desde?: string, hasta?: string) {
+  const { desdeDate, hastaDate } = resolverRango(desde, hasta);
+
+  const compras = await prisma.compra.findMany({
+    where: { fecha: { gte: desdeDate, lte: hastaDate } },
+    include: {
+      proveedor: { select: { nombre: true } },
+      items: {
+        include: {
+          producto: { select: { nombre: true } },
+          ingrediente: { select: { nombre: true } },
+        },
+      },
+    },
+  });
+
+  const totalGastado = compras.reduce((sum, c) => sum + Number(c.total), 0);
+
+  const porProveedor = new Map<string, { nombre: string; total: number; cantidadCompras: number }>();
+  for (const c of compras) {
+    const actual = porProveedor.get(c.proveedorId) ?? {
+      nombre: c.proveedor.nombre,
+      total: 0,
+      cantidadCompras: 0,
+    };
+    actual.total += Number(c.total);
+    actual.cantidadCompras += 1;
+    porProveedor.set(c.proveedorId, actual);
+  }
+
+  const porItem = new Map<string, { nombre: string; cantidad: number; total: number }>();
+  for (const c of compras) {
+    for (const item of c.items) {
+      const nombre = item.producto?.nombre ?? item.ingrediente?.nombre ?? "—";
+      const clave = item.productoId ?? item.ingredienteId ?? nombre;
+      const actual = porItem.get(clave) ?? { nombre, cantidad: 0, total: 0 };
+      actual.cantidad += Number(item.cantidad);
+      actual.total += Number(item.cantidad) * Number(item.costoUnitario);
+      porItem.set(clave, actual);
+    }
+  }
+
+  return {
+    totalGastado,
+    totalCompras: compras.length,
+    porProveedor: Array.from(porProveedor.values()).sort((a, b) => b.total - a.total),
+    porItem: Array.from(porItem.values()).sort((a, b) => b.total - a.total),
+  };
+}

@@ -8,7 +8,7 @@ const itemPedidoInputSchema = z.object({
 });
 
 export const crearPedidoSchema = z.object({
-  espacioId: z.string().min(1, "El espacio (mesa/barra) es requerido"),
+  cuentaId: z.string().min(1, "La cuenta es requerida"),
   items: z.array(itemPedidoInputSchema).min(1, "El pedido debe tener al menos un producto"),
 });
 

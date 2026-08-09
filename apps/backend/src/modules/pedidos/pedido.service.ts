@@ -1,9 +1,9 @@
 import { Prisma, ItemPedido } from "@prisma/client";
 import { prisma } from "../../lib/prisma";
 import { AppError } from "../../middlewares/errorHandler";
-import { AreaPreparacion, EstadoEspacio, EstadoPedido, SOCKET_EVENTS, TipoPromocion } from "@barranke/shared";
+import { AreaPreparacion, EstadoCuenta, EstadoPedido, SOCKET_EVENTS, TipoPromocion } from "@barranke/shared";
 import { getIO } from "../../sockets/socketServer";
-import { ejecutarDescuentoVenta } from "../inventario/inventario.service";
+import { ejecutarDescuentoVenta, revertirDescuentoVenta } from "../inventario/inventario.service";
 import { CrearPedidoInput } from "./pedido.schema";
 
 /**
@@ -39,7 +39,7 @@ function calcularEstadoAgregado(estadosItems: string[]): string {
 }
 
 const INCLUDE_PEDIDO_COMPLETO = {
-  espacio: true,
+  cuenta: { include: { espacio: true } },
   usuario: { select: { id: true, nombre: true } },
   items: { include: { producto: true } },
 } satisfies Prisma.PedidoInclude;
@@ -51,17 +51,14 @@ const INCLUDE_PEDIDO_COMPLETO = {
  * se revierte: no se crea un pedido "a medias".
  */
 export async function crearPedido(usuarioId: string, data: CrearPedidoInput) {
-  const espacio = await prisma.espacio.findUnique({ where: { id: data.espacioId } });
+  const cuenta = await prisma.cuenta.findUnique({ where: { id: data.cuentaId } });
 
-  if (!espacio) {
-    throw new AppError("Espacio no encontrado", 404);
+  if (!cuenta) {
+    throw new AppError("Cuenta no encontrada", 404);
   }
 
-  if (espacio.estado !== EstadoEspacio.OCUPADA) {
-    throw new AppError(
-      "Debes abrir la mesa/barra antes de enviar un pedido",
-      400
-    );
+  if (cuenta.estado !== EstadoCuenta.ABIERTA) {
+    throw new AppError("Debes abrir la cuenta antes de enviar un pedido", 400);
   }
 
   const productos = await prisma.producto.findMany({
@@ -154,7 +151,7 @@ export async function crearPedido(usuarioId: string, data: CrearPedidoInput) {
 
     const pedido = await tx.pedido.create({
       data: {
-        espacioId: data.espacioId,
+        cuentaId: data.cuentaId,
         usuarioId,
         estado: calcularEstadoAgregado(estadosIniciales.map((e) => e.estado)),
       },
@@ -196,24 +193,20 @@ export async function crearPedido(usuarioId: string, data: CrearPedidoInput) {
 }
 
 /**
- * Solo trae los pedidos de la SESIÓN ACTUAL de la mesa/barra (desde que se abrió
- * esta vez), no todo su historial. Usa la misma regla que el cálculo de "total
- * consumido" en espacio.service.ts, para que ambos siempre coincidan.
- * Si el espacio está libre (sin sesión activa), no hay "pedidos de esta sesión".
+ * Trae los pedidos de una cuenta. A diferencia del viejo sistema de mesas,
+ * cada pedido queda vinculado a su cuenta desde que se crea (cuentaId es un
+ * vínculo estable, no un espacio reutilizado) — así que basta con filtrar
+ * por cuentaId, sin trucos de rango de fechas.
  */
-export async function listarPorEspacio(espacioId: string) {
-  const espacio = await prisma.espacio.findUnique({ where: { id: espacioId } });
+export async function listarPorCuenta(cuentaId: string) {
+  const cuenta = await prisma.cuenta.findUnique({ where: { id: cuentaId } });
 
-  if (!espacio) {
-    throw new AppError("Espacio no encontrado", 404);
-  }
-
-  if (espacio.estado !== EstadoEspacio.OCUPADA || !espacio.horaApertura) {
-    return [];
+  if (!cuenta) {
+    throw new AppError("Cuenta no encontrada", 404);
   }
 
   return prisma.pedido.findMany({
-    where: { espacioId, createdAt: { gte: espacio.horaApertura } },
+    where: { cuentaId },
     include: INCLUDE_PEDIDO_COMPLETO,
     orderBy: { createdAt: "desc" },
   });
@@ -229,7 +222,7 @@ export async function listarParaCocina() {
       areaPreparacion: AreaPreparacion.COCINA,
       estado: { in: [EstadoPedido.PENDIENTE, EstadoPedido.PREPARANDO, EstadoPedido.LISTO] },
     },
-    include: { producto: true, pedido: { include: { espacio: true } } },
+    include: { producto: true, pedido: { include: { cuenta: { include: { espacio: true } } } } },
     orderBy: { pedido: { createdAt: "asc" } },
   });
 }
@@ -244,7 +237,7 @@ export async function listarParaBarra() {
       areaPreparacion: AreaPreparacion.BARRA,
       estado: { in: [EstadoPedido.PENDIENTE, EstadoPedido.PREPARANDO, EstadoPedido.LISTO] },
     },
-    include: { producto: true, pedido: { include: { espacio: true } } },
+    include: { producto: true, pedido: { include: { cuenta: { include: { espacio: true } } } } },
     orderBy: { pedido: { createdAt: "asc" } },
   });
 }
@@ -263,7 +256,59 @@ export async function actualizarEstadoItem(itemId: string, nuevoEstado: string) 
   const itemActualizado = await prisma.itemPedido.update({
     where: { id: itemId },
     data: { estado: nuevoEstado },
-    include: { producto: true, pedido: { include: { espacio: true } } },
+    include: { producto: true, pedido: { include: { cuenta: { include: { espacio: true } } } } },
+  });
+
+  const pedidoActualizado = await sincronizarEstadoPedido(item.pedidoId);
+
+  getIO().emit(SOCKET_EVENTS.PEDIDO_ITEM_ACTUALIZADO, {
+    item: itemActualizado,
+    pedidoId: item.pedidoId,
+    estadoPedido: pedidoActualizado.estado,
+  });
+
+  return itemActualizado;
+}
+
+/**
+ * Cancela un ítem de un pedido que todavía no se ha pagado (mientras la
+ * cuenta siga abierta): le devuelve al inventario lo que ese ítem había
+ * descontado, y recalcula el estado agregado del pedido. Si la cuenta ya se
+ * cerró (el pedido ya tiene una venta), no se puede — hay que anular la
+ * venta completa en su lugar, para no dejar números descuadrados.
+ */
+export async function cancelarItem(itemId: string) {
+  const item = await prisma.itemPedido.findUnique({
+    where: { id: itemId },
+    include: { pedido: true, producto: true },
+  });
+
+  if (!item) {
+    throw new AppError("Ítem de pedido no encontrado", 404);
+  }
+  if (item.estado === EstadoPedido.CANCELADO) {
+    throw new AppError("Este ítem ya está cancelado", 400);
+  }
+  if (item.pedido.ventaId) {
+    throw new AppError(
+      "Esta cuenta ya fue cerrada y pagada; para corregirla, anula la venta desde Caja o Ventas.",
+      400
+    );
+  }
+
+  const itemActualizado = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    await revertirDescuentoVenta(
+      tx,
+      item.productoId,
+      item.cantidad,
+      `Cancelación de ítem — ${item.producto.nombre}`
+    );
+
+    return tx.itemPedido.update({
+      where: { id: itemId },
+      data: { estado: EstadoPedido.CANCELADO },
+      include: { producto: true, pedido: { include: { cuenta: { include: { espacio: true } } } } },
+    });
   });
 
   const pedidoActualizado = await sincronizarEstadoPedido(item.pedidoId);
@@ -292,22 +337,22 @@ async function sincronizarEstadoPedido(pedidoId: string) {
 }
 
 /**
- * Repite el último pedido enviado a un espacio (misma lista de productos y cantidades),
- * recalculando precios actuales y volviendo a descontar inventario.
+ * Repite el último pedido enviado a una cuenta (misma lista de productos y
+ * cantidades), recalculando precios actuales y volviendo a descontar inventario.
  */
-export async function repetirUltimaRonda(espacioId: string, usuarioId: string) {
+export async function repetirUltimaRonda(cuentaId: string, usuarioId: string) {
   const ultimoPedido = await prisma.pedido.findFirst({
-    where: { espacioId, estado: { not: EstadoPedido.CANCELADO } },
+    where: { cuentaId, estado: { not: EstadoPedido.CANCELADO } },
     orderBy: { createdAt: "desc" },
     include: { items: true },
   });
 
   if (!ultimoPedido || ultimoPedido.items.length === 0) {
-    throw new AppError("No hay una ronda previa en este espacio para repetir", 400);
+    throw new AppError("No hay una ronda previa en esta cuenta para repetir", 400);
   }
 
   return crearPedido(usuarioId, {
-    espacioId,
+    cuentaId,
     items: ultimoPedido.items.map((i: ItemPedido) => ({
       productoId: i.productoId,
       cantidad: i.cantidad,

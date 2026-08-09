@@ -11,6 +11,7 @@ import ingredienteRoutes from "./modules/ingredientes/ingrediente.routes";
 import recetaRoutes from "./modules/recetas/receta.routes";
 import inventarioRoutes from "./modules/inventario/inventario.routes";
 import espacioRoutes from "./modules/espacios/espacio.routes";
+import cuentaRoutes from "./modules/cuentas/cuenta.routes";
 import pedidoRoutes from "./modules/pedidos/pedido.routes";
 import cajaRoutes from "./modules/caja/caja.routes";
 import compraRoutes from "./modules/compras/compra.routes";
@@ -20,6 +21,7 @@ import promocionRoutes from "./modules/promociones/promocion.routes";
 import clienteRoutes from "./modules/clientes/cliente.routes";
 import categoriaRoutes from "./modules/categorias/categoria.routes";
 import consumoInternoRoutes from "./modules/consumo-interno/consumo-interno.routes";
+import proveedorRoutes from "./modules/proveedores/proveedor.routes";
 
 const app = express();
 
@@ -38,6 +40,7 @@ app.use("/api/productos/:productoId/receta", recetaRoutes);
 app.use("/api/ingredientes", ingredienteRoutes);
 app.use("/api/inventario", inventarioRoutes);
 app.use("/api/espacios", espacioRoutes);
+app.use("/api/cuentas", cuentaRoutes);
 app.use("/api/pedidos", pedidoRoutes);
 app.use("/api/caja", cajaRoutes);
 app.use("/api/compras", compraRoutes);
@@ -47,6 +50,7 @@ app.use("/api/promociones", promocionRoutes);
 app.use("/api/clientes", clienteRoutes);
 app.use("/api/categorias", categoriaRoutes);
 app.use("/api/consumo-interno", consumoInternoRoutes);
+app.use("/api/proveedores", proveedorRoutes);
 
 /**
  * Sirve el frontend ya compilado (resultado de `npm run build` en

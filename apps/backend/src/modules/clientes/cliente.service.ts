@@ -9,7 +9,7 @@ import {
 
 /**
  * El "fiado" ahora sí está conectado al flujo real: cerrar una mesa con
- * método FIADO genera un CARGO aquí (ver espacio.service.ts). Este módulo
+ * método FIADO genera un CARGO aquí (ver cuenta.service.ts). Este módulo
  * expone el saldo resultante y permite registrar abonos para saldarlo.
  * El resto (nombre, teléfono, cumpleaños) sigue siendo CRUD simple.
  */

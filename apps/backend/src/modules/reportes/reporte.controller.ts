@@ -48,3 +48,9 @@ export const consumoInternoHandler = asyncHandler(async (req: Request, res: Resp
   const datos = await reporteService.reporteConsumoInterno(desde, hasta);
   res.json(datos);
 });
+
+export const comprasHandler = asyncHandler(async (req: Request, res: Response) => {
+  const { desde, hasta } = rango(req);
+  const datos = await reporteService.reporteCompras(desde, hasta);
+  res.json(datos);
+});

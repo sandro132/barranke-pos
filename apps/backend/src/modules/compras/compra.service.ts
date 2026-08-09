@@ -5,6 +5,7 @@ import { TipoMovimientoInventario } from "@barranke/shared";
 import { CrearCompraInput } from "./compra.schema";
 
 const INCLUDE_COMPRA_COMPLETA = {
+  proveedor: true,
   items: { include: { producto: true, ingrediente: true } },
 } satisfies Prisma.CompraInclude;
 
@@ -59,9 +60,14 @@ export async function crearCompra(data: CrearCompraInput) {
 
   const total = data.items.reduce((sum, i) => sum + i.cantidad * i.costoUnitario, 0);
 
+  const proveedor = await prisma.proveedor.findUnique({ where: { id: data.proveedorId } });
+  if (!proveedor) {
+    throw new AppError("Proveedor no encontrado", 404);
+  }
+
   const compraId = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     const compra = await tx.compra.create({
-      data: { proveedor: data.proveedor, factura: data.factura, total },
+      data: { proveedorId: data.proveedorId, factura: data.factura, total },
     });
 
     for (const item of data.items) {
@@ -91,7 +97,7 @@ export async function crearCompra(data: CrearCompraInput) {
         data: {
           tipo: TipoMovimientoInventario.COMPRA,
           cantidad: item.cantidad,
-          motivo: `Compra a ${data.proveedor}`,
+          motivo: `Compra a ${proveedor.nombre}`,
           productoId: item.productoId,
           ingredienteId: item.ingredienteId,
           compraId: compra.id,
@@ -113,7 +119,7 @@ export async function crearCompra(data: CrearCompraInput) {
  * recalcular con precisión cuánto stock sumar o quitar según la diferencia,
  * lo cual es mucho más fácil de hacer mal que anular y rehacer.
  */
-export async function actualizarCompra(id: string, data: { proveedor?: string; factura?: string }) {
+export async function actualizarCompra(id: string, data: { proveedorId?: string; factura?: string }) {
   await obtenerCompra(id);
 
   return prisma.compra.update({

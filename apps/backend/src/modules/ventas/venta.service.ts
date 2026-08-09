@@ -11,7 +11,7 @@ interface LineaTicket {
 
 /**
  * Reconstruye el ticket de una venta a partir de los pedidos que quedaron
- * vinculados a ella al momento del cierre (ver espacio.service.ts). Agrupa
+ * vinculados a ella al momento del cierre (ver cuenta.service.ts). Agrupa
  * los ítems por producto: si la mesa pidió Poker en dos rondas distintas,
  * el ticket muestra una sola línea "2x Poker", no dos líneas separadas.
  */
@@ -19,7 +19,7 @@ export async function obtenerTicket(ventaId: string) {
   const venta = await prisma.venta.findUnique({
     where: { id: ventaId },
     include: {
-      espacio: { select: { nombre: true } },
+      cuenta: { select: { nombre: true, espacio: { select: { nombre: true } } } },
       usuario: { select: { id: true, nombre: true } },
       pedidos: {
         include: { items: { include: { producto: { select: { nombre: true } } } } },
@@ -58,7 +58,8 @@ export async function obtenerTicket(ventaId: string) {
   return {
     id: venta.id,
     fecha: venta.fecha,
-    espacio: venta.espacio.nombre,
+    cuenta: venta.cuenta.nombre,
+    espacio: venta.cuenta.espacio?.nombre ?? null,
     usuario: venta.usuario.nombre,
     metodoPago: venta.metodoPago,
     subtotal: Number(venta.subtotal),
@@ -66,6 +67,88 @@ export async function obtenerTicket(ventaId: string) {
     total: Number(venta.total),
     items: Array.from(itemsPorProducto.values()),
   };
+}
+
+/**
+ * Corrige el método de pago de una venta ya hecha, sin tocar nada más (ni
+ * los ítems, ni el ticket, ni el inventario) — para cuando alguien marca
+ * "Efectivo" en vez de "Nequi" por error, sin tener que anular toda la
+ * venta y perder el pedido.
+ *
+ * Entre métodos normales (Efectivo, Nequi, Transferencia, etc.) es tan
+ * simple como cambiar el campo: el "efectivo esperado" de caja se calcula
+ * en vivo desde el método de cada venta, así que se ajusta solo.
+ *
+ * Cambiar DESDE o HACIA fiado sí necesita más cuidado: fiado no mueve caja
+ * (mueve la cuenta del cliente), así que hay que crear o borrar esos
+ * movimientos según corresponda.
+ */
+export async function cambiarMetodoPago(ventaId: string, nuevoMetodo: string, clienteId?: string) {
+  const venta = await prisma.venta.findUnique({
+    where: { id: ventaId },
+    include: { movimientoCaja: true, movimientoCuenta: true },
+  });
+
+  if (!venta) {
+    throw new AppError("Venta no encontrada", 404);
+  }
+
+  if (nuevoMetodo === "FIADO" && !clienteId) {
+    throw new AppError("Selecciona un cliente para fiar esta venta", 400);
+  }
+
+  const eraFiado = venta.metodoPago === "FIADO";
+  const seraFiado = nuevoMetodo === "FIADO";
+
+  await prisma.$transaction(async (tx) => {
+    // Si dejó de ser fiado, borra el cargo que tenía el cliente.
+    if (eraFiado && !seraFiado && venta.movimientoCuenta) {
+      await tx.movimientoCuentaCliente.delete({ where: { id: venta.movimientoCuenta.id } });
+    }
+
+    // Si dejó de ser un método que mueve caja, borra ese movimiento.
+    if (!eraFiado && seraFiado && venta.movimientoCaja) {
+      await tx.movimientoCaja.delete({ where: { id: venta.movimientoCaja.id } });
+    }
+
+    // Si ahora SÍ es fiado (y antes no lo era), crea el cargo al cliente.
+    if (seraFiado && !eraFiado) {
+      await tx.movimientoCuentaCliente.create({
+        data: {
+          clienteId: clienteId!,
+          tipo: "CARGO",
+          monto: venta.total,
+          descripcion: `Consumo — ${venta.id.slice(0, 8)} (método corregido a fiado)`,
+          ventaId: venta.id,
+        },
+      });
+    }
+
+    // Si ahora NO es fiado (y antes sí lo era) y hay caja abierta, crea el
+    // movimiento de caja que le faltaba.
+    if (!seraFiado && eraFiado) {
+      const cajaAbierta = await tx.caja.findFirst({ where: { abierta: true } });
+      if (cajaAbierta) {
+        await tx.movimientoCaja.create({
+          data: {
+            cajaId: cajaAbierta.id,
+            tipo: "VENTA",
+            monto: venta.total,
+            descripcion: `Venta (método corregido, ya no es fiado)`,
+            usuarioId: venta.usuarioId,
+            ventaId: venta.id,
+          },
+        });
+      }
+    }
+
+    await tx.venta.update({
+      where: { id: ventaId },
+      data: { metodoPago: nuevoMetodo, clienteId: seraFiado ? clienteId : null },
+    });
+  });
+
+  return obtenerTicket(ventaId);
 }
 
 /**
@@ -86,7 +169,7 @@ export async function listarVentas(desde?: string, hasta?: string) {
       },
     },
     include: {
-      espacio: { select: { id: true, nombre: true } },
+      cuenta: { select: { id: true, nombre: true, espacio: { select: { nombre: true } } } },
       cliente: { select: { id: true, nombre: true } },
       caja: { select: { id: true, abierta: true } },
     },

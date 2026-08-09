@@ -15,13 +15,13 @@ const itemCompraInputSchema = z
   });
 
 export const crearCompraSchema = z.object({
-  proveedor: z.string().min(1, "El proveedor es requerido"),
+  proveedorId: z.string().min(1, "El proveedor es requerido"),
   factura: z.string().optional(),
   items: z.array(itemCompraInputSchema).min(1, "La compra debe tener al menos un ítem"),
 });
 
 export const actualizarCompraSchema = z.object({
-  proveedor: z.string().min(1).optional(),
+  proveedorId: z.string().min(1).optional(),
   factura: z.string().optional(),
 });
 

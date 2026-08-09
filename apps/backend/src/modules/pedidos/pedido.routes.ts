@@ -9,8 +9,9 @@ router.use(requireAuth);
 router.post("/", pedidoController.crearHandler);
 router.get("/cocina", pedidoController.listarCocinaHandler);
 router.get("/barra", pedidoController.listarBarraHandler);
-router.get("/espacio/:espacioId", pedidoController.listarPorEspacioHandler);
-router.post("/espacio/:espacioId/repetir-ultima-ronda", pedidoController.repetirUltimaRondaHandler);
+router.get("/cuenta/:cuentaId", pedidoController.listarPorCuentaHandler);
+router.post("/cuenta/:cuentaId/repetir-ultima-ronda", pedidoController.repetirUltimaRondaHandler);
 router.patch("/items/:itemId/estado", pedidoController.actualizarEstadoItemHandler);
+router.post("/items/:itemId/cancelar", pedidoController.cancelarItemHandler);
 
 export default router;

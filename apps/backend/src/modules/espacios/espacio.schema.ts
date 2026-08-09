@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { MetodoPago, TipoEspacio } from "@barranke/shared";
+import { TipoEspacio } from "@barranke/shared";
+
+// Espacio ahora es solo información física (mesa/barra, nombre, capacidad).
+// Todo lo operativo (abrir, cerrar, unir, fiado, etc.) vive en el módulo de
+// Cuentas — un espacio ya no se "ocupa", puede tener varias cuentas abiertas
+// al mismo tiempo o ninguna.
 
 export const crearEspacioSchema = z.object({
   nombre: z.string().min(1, "El nombre es requerido"),
@@ -12,42 +17,9 @@ export const actualizarEspacioSchema = z.object({
   capacidad: z.number().int().positive().optional().nullable(),
 });
 
-export const abrirEspacioSchema = z.object({
-  descripcion: z.string().max(200, "Máximo 200 caracteres").optional(),
-});
-
-// metodoPago es opcional aquí porque si la mesa no tuvo consumo (se abrió por
-// error), se puede cerrar sin pagar nada. El service exige el dato solo si hay
-// un total mayor a 0.
-// pagos es la alternativa para "dividir cuenta": en vez de un solo método,
-// una lista de pagos (cada uno con su monto y método) que deben sumar el total.
-// clienteId es obligatorio (a nivel de service) cuando el método es FIADO.
-export const cerrarEspacioSchema = z.object({
-  metodoPago: z.nativeEnum(MetodoPago).optional(),
-  clienteId: z.string().optional(),
-  pagos: z
-    .array(
-      z.object({
-        metodoPago: z.nativeEnum(MetodoPago),
-        monto: z.number().positive("Cada pago debe ser mayor a 0"),
-        clienteId: z.string().optional(),
-      })
-    )
-    .min(2, "Para dividir la cuenta se necesitan al menos 2 pagos")
-    .optional(),
-});
-
-export const unirEspaciosSchema = z.object({
-  hijoIds: z.array(z.string()).min(1, "Selecciona al menos una mesa para unir"),
-});
-
-export type UnirEspaciosInput = z.infer<typeof unirEspaciosSchema>;
-
 export const listarEspaciosQuerySchema = z.object({
   tipo: z.nativeEnum(TipoEspacio).optional(),
 });
 
 export type CrearEspacioInput = z.infer<typeof crearEspacioSchema>;
 export type ActualizarEspacioInput = z.infer<typeof actualizarEspacioSchema>;
-export type AbrirEspacioInput = z.infer<typeof abrirEspacioSchema>;
-export type CerrarEspacioInput = z.infer<typeof cerrarEspacioSchema>;

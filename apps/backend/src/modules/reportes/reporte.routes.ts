@@ -13,5 +13,6 @@ router.get("/metodos-pago", reporteController.metodosPagoHandler);
 router.get("/categorias", reporteController.categoriasHandler);
 router.get("/inventario", reporteController.inventarioHandler);
 router.get("/consumo-interno", reporteController.consumoInternoHandler);
+router.get("/compras", reporteController.comprasHandler);
 
 export default router;

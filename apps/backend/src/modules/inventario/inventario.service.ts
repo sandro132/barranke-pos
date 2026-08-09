@@ -57,6 +57,59 @@ export async function ejecutarDescuentoVenta(
   return descontarStockDirecto(tx, producto, cantidad);
 }
 
+/**
+ * El espejo de ejecutarDescuentoVenta: cuando se cancela un ítem de un
+ * pedido que todavía no se ha pagado, esto le devuelve al inventario
+ * exactamente lo que ese ítem le había quitado (los ingredientes de su
+ * receta, o el stock directo si no tiene receta).
+ */
+export async function revertirDescuentoVenta(
+  tx: Prisma.TransactionClient,
+  productoId: string,
+  cantidad: number,
+  motivo: string
+) {
+  const producto = await tx.producto.findUnique({
+    where: { id: productoId },
+    include: { receta: { include: { ingrediente: true } } },
+  });
+
+  if (!producto) {
+    throw new AppError("Producto no encontrado", 404);
+  }
+
+  if (producto.receta.length > 0) {
+    for (const item of producto.receta) {
+      const cantidadADevolver = Number(item.cantidad) * cantidad;
+      await tx.ingrediente.update({
+        where: { id: item.ingredienteId },
+        data: { stock: { increment: cantidadADevolver } },
+      });
+      await tx.movimientoInventario.create({
+        data: {
+          tipo: TipoMovimientoInventario.AJUSTE,
+          cantidad: cantidadADevolver,
+          motivo,
+          ingredienteId: item.ingredienteId,
+        },
+      });
+    }
+  } else {
+    await tx.producto.update({
+      where: { id: productoId },
+      data: { stock: { increment: cantidad } },
+    });
+    await tx.movimientoInventario.create({
+      data: {
+        tipo: TipoMovimientoInventario.AJUSTE,
+        cantidad,
+        motivo,
+        productoId,
+      },
+    });
+  }
+}
+
 async function descontarPorReceta(
   tx: Prisma.TransactionClient,
   producto: Prisma.ProductoGetPayload<{ include: { receta: { include: { ingrediente: true } } } }>,

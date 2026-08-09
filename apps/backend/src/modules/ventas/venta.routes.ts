@@ -9,5 +9,6 @@ router.use(requireAuth);
 router.get("/", ventaController.listarHandler);
 router.get("/:id/ticket", ventaController.obtenerTicketHandler);
 router.delete("/:id", ventaController.anularHandler);
+router.patch("/:id/metodo-pago", ventaController.cambiarMetodoPagoHandler);
 
 export default router;

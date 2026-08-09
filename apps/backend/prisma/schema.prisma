@@ -32,6 +32,7 @@ model Usuario {
   movimientosCaja       MovimientoCaja[]
   ventas                Venta[]
   movimientosInventario MovimientoInventario[]
+  cuentas               Cuenta[]
 }
 
 // =========================
@@ -42,22 +43,42 @@ model Espacio {
   id     String @id @default(cuid())
   nombre String
   /// Valores válidos: MESA | BARRA
-  tipo   String
-  /// Valores válidos: LIBRE | OCUPADA | RESERVADA
-  estado       String    @default("LIBRE")
-  capacidad    Int?
-  horaApertura DateTime?
-  // Descripción libre de quién está en la mesa (ej. "Juan - cumpleaños",
-  // "grupo de 6, cliente frecuente"). Reemplaza el conteo simple de personas.
+  tipo      String
+  capacidad Int?
+
+  cuentas Cuenta[]
+}
+
+// Reemplaza el rol operativo que antes tenía Espacio (estado OCUPADA,
+// horaApertura, etc.): una cuenta es "a nombre de quién" (ej. "Juan",
+// "Cumpleaños María"), no de una mesa. Una mesa puede tener varias cuentas
+// abiertas al mismo tiempo (grupos distintos en la misma mesa), o ninguna
+// (cuenta de alguien parado en la barra). El espacio queda como referencia
+// opcional, solo para que el mesero sepa dónde entregar.
+model Cuenta {
+  id     String @id @default(cuid())
+  nombre String
+  /// Valores válidos: ABIERTA | CERRADA
+  estado       String   @default("ABIERTA")
+  horaApertura DateTime @default(now())
   descripcion  String?
+
+  espacioId String?
+  espacio   Espacio? @relation(fields: [espacioId], references: [id])
+
+  usuarioId String?
+  usuario   Usuario? @relation(fields: [usuarioId], references: [id])
 
   pedidos Pedido[]
   ventas  Venta[]
 
-  // preparado para "unir mesas" a futuro
-  espacioPadreId String?
-  espacioPadre   Espacio?  @relation("EspaciosUnidos", fields: [espacioPadreId], references: [id])
-  espaciosHijos  Espacio[] @relation("EspaciosUnidos")
+  // Unir cuentas: igual que antes se unían mesas, ahora se unen cuentas
+  // (ej. dos grupos que al final deciden pagar juntos).
+  cuentaPadreId String?
+  cuentaPadre   Cuenta?  @relation("CuentasUnidas", fields: [cuentaPadreId], references: [id])
+  cuentasHijas  Cuenta[] @relation("CuentasUnidas")
+
+  createdAt DateTime @default(now())
 }
 
 // =========================
@@ -181,9 +202,9 @@ model MovimientoInventario {
 // =========================
 
 model Pedido {
-  id        String   @id @default(cuid())
-  espacioId String
-  espacio   Espacio  @relation(fields: [espacioId], references: [id])
+  id       String  @id @default(cuid())
+  cuentaId String
+  cuenta   Cuenta  @relation(fields: [cuentaId], references: [id])
   usuarioId String
   usuario   Usuario  @relation(fields: [usuarioId], references: [id])
   /// Valores válidos: PENDIENTE | PREPARANDO | LISTO | ENTREGADO | CANCELADO
@@ -219,9 +240,9 @@ model ItemPedido {
 // =========================
 
 model Venta {
-  id        String  @id @default(cuid())
-  espacioId String
-  espacio   Espacio @relation(fields: [espacioId], references: [id])
+  id       String @id @default(cuid())
+  cuentaId String
+  cuenta   Cuenta @relation(fields: [cuentaId], references: [id])
   usuarioId String
   usuario   Usuario @relation(fields: [usuarioId], references: [id])
   subtotal  Decimal
@@ -282,12 +303,27 @@ model MovimientoCaja {
 // COMPRAS
 // =========================
 
-model Compra {
+// Antes el proveedor era solo texto libre en cada compra (riesgo de que
+// "Distribuidora X" y "distribuidora x" queden como si fueran distintos).
+// Ahora es una tabla real, igual que las categorías.
+model Proveedor {
   id        String   @id @default(cuid())
-  proveedor String
-  factura   String?
-  fecha     DateTime @default(now())
-  total     Decimal
+  nombre    String   @unique
+  telefono  String?
+  contacto  String?
+  notas     String?
+  createdAt DateTime @default(now())
+
+  compras Compra[]
+}
+
+model Compra {
+  id          String   @id @default(cuid())
+  proveedorId String
+  proveedor   Proveedor @relation(fields: [proveedorId], references: [id])
+  factura     String?
+  fecha       DateTime @default(now())
+  total       Decimal
 
   items       ItemCompra[]
   movimientos MovimientoInventario[]

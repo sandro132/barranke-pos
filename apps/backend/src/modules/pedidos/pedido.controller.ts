@@ -11,8 +11,8 @@ export const crearHandler = asyncHandler(async (req: Request, res: Response) => 
   res.status(201).json(pedido);
 });
 
-export const listarPorEspacioHandler = asyncHandler(async (req: Request, res: Response) => {
-  const pedidos = await pedidoService.listarPorEspacio(req.params.espacioId);
+export const listarPorCuentaHandler = asyncHandler(async (req: Request, res: Response) => {
+  const pedidos = await pedidoService.listarPorCuenta(req.params.cuentaId);
   res.json(pedidos);
 });
 
@@ -32,8 +32,13 @@ export const actualizarEstadoItemHandler = asyncHandler(async (req: Request, res
   res.json(item);
 });
 
+export const cancelarItemHandler = asyncHandler(async (req: Request, res: Response) => {
+  const item = await pedidoService.cancelarItem(req.params.itemId);
+  res.json(item);
+});
+
 export const repetirUltimaRondaHandler = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw new AppError("No autenticado", 401);
-  const pedido = await pedidoService.repetirUltimaRonda(req.params.espacioId, req.user.userId);
+  const pedido = await pedidoService.repetirUltimaRonda(req.params.cuentaId, req.user.userId);
   res.status(201).json(pedido);
 });

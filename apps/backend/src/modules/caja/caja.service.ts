@@ -66,7 +66,7 @@ async function construirResumen(cajaId: string, montoInicial: unknown, fechaAper
     }),
     prisma.venta.findMany({
       where: { cajaId },
-      include: { espacio: { select: { id: true, nombre: true } } },
+      include: { cuenta: { select: { id: true, nombre: true, espacio: { select: { nombre: true } } } } },
       orderBy: { fecha: "asc" },
     }),
   ]);
