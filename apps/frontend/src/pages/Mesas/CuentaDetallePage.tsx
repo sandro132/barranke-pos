@@ -7,15 +7,15 @@ import { Badge } from "../../components/ui/Badge";
 import { Modal } from "../../components/ui/Modal";
 import { Input } from "../../components/ui/Input";
 import {
-  cerrarEspacio,
-  obtenerEspacio,
+  cerrarCuenta,
+  obtenerCuenta,
   PagoDividido,
-  separarEspacio,
-} from "../../services/espacioService";
-import { listarPorEspacio, repetirUltimaRonda } from "../../services/pedidoService";
+  separarCuenta,
+} from "../../services/cuentaService";
+import { cancelarItem, listarPorCuenta, repetirUltimaRonda } from "../../services/pedidoService";
 import { listarClientes } from "../../services/clienteService";
 import { formatoMoneda } from "../../utils/format";
-import { UnirMesasModal } from "./UnirMesasModal";
+import { UnirCuentasModal } from "./UnirCuentasModal";
 
 // TARJETA queda preparada en el backend pero no se ofrece todavía como opción
 // (según el pedido original: "preparado para tarjetas en el futuro").
@@ -42,7 +42,7 @@ interface ParteDividida {
   clienteId: string;
 }
 
-export function MesaDetallePage() {
+export function CuentaDetallePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -54,16 +54,16 @@ export function MesaDetallePage() {
   const [dividiendo, setDividiendo] = useState(false);
   const [partes, setPartes] = useState<ParteDividida[]>([]);
 
-  const espacioQuery = useQuery({
-    queryKey: ["espacio", id],
-    queryFn: () => obtenerEspacio(id!),
+  const cuentaQuery = useQuery({
+    queryKey: ["cuenta", id],
+    queryFn: () => obtenerCuenta(id!),
     enabled: !!id,
     refetchInterval: 30_000, // refresca el tiempo abierta cada 30s
   });
 
   const pedidosQuery = useQuery({
-    queryKey: ["pedidos", "espacio", id],
-    queryFn: () => listarPorEspacio(id!),
+    queryKey: ["pedidos", "cuenta", id],
+    queryFn: () => listarPorCuenta(id!),
     enabled: !!id,
   });
 
@@ -74,52 +74,62 @@ export function MesaDetallePage() {
   });
 
   function invalidarTodo() {
-    queryClient.invalidateQueries({ queryKey: ["espacios"] });
-    queryClient.invalidateQueries({ queryKey: ["espacio", id] });
-    queryClient.invalidateQueries({ queryKey: ["pedidos", "espacio", id] });
+    queryClient.invalidateQueries({ queryKey: ["cuentas"] });
+    queryClient.invalidateQueries({ queryKey: ["cuenta", id] });
+    queryClient.invalidateQueries({ queryKey: ["pedidos", "cuenta", id] });
     queryClient.invalidateQueries({ queryKey: ["caja", "actual"] });
     queryClient.invalidateQueries({ queryKey: ["clientes"] });
   }
 
   const cerrarMutation = useMutation({
     mutationFn: (vars: { metodo?: string; pagos?: PagoDividido[]; clienteId?: string }) =>
-      cerrarEspacio(id!, vars.metodo, vars.pagos, vars.clienteId),
+      cerrarCuenta(id!, vars.metodo, vars.pagos, vars.clienteId),
     onSuccess: () => {
       invalidarTodo();
-      navigate("/mesas");
+      navigate("/cuentas");
     },
   });
 
   const repetirMutation = useMutation({
     mutationFn: () => repetirUltimaRonda(id!),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["pedidos", "espacio", id] });
-      queryClient.invalidateQueries({ queryKey: ["espacio", id] });
+      queryClient.invalidateQueries({ queryKey: ["pedidos", "cuenta", id] });
+      queryClient.invalidateQueries({ queryKey: ["cuenta", id] });
+    },
+  });
+
+  const cancelarItemMutation = useMutation({
+    mutationFn: (itemId: string) => cancelarItem(itemId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["pedidos", "cuenta", id] });
+      queryClient.invalidateQueries({ queryKey: ["cuenta", id] });
+      queryClient.invalidateQueries({ predicate: (q) => q.queryKey[0] === "productos" });
+      queryClient.invalidateQueries({ predicate: (q) => q.queryKey[0] === "ingredientes" });
     },
   });
 
   const separarMutation = useMutation({
-    mutationFn: () => separarEspacio(id!),
+    mutationFn: () => separarCuenta(id!),
     onSuccess: invalidarTodo,
   });
 
-  if (espacioQuery.isLoading) {
+  if (cuentaQuery.isLoading) {
     return <div className="p-8 text-ink-muted text-sm">Cargando...</div>;
   }
 
-  const espacio = espacioQuery.data;
-  if (!espacio) {
-    return <div className="p-8 text-ink-muted text-sm">Espacio no encontrado.</div>;
+  const cuenta = cuentaQuery.data;
+  if (!cuenta) {
+    return <div className="p-8 text-ink-muted text-sm">Cuenta no encontrada.</div>;
   }
 
   function activarDivision() {
-    const iguales = dividirEnPartesIguales(espacio!.totalConsumido, 2);
+    const iguales = dividirEnPartesIguales(cuenta!.totalConsumido, 2);
     setPartes(iguales.map((monto) => ({ monto: String(monto), metodoPago: "EFECTIVO", clienteId: "" })));
     setDividiendo(true);
   }
 
   function cambiarNumeroPartes(n: number) {
-    const iguales = dividirEnPartesIguales(espacio!.totalConsumido, n);
+    const iguales = dividirEnPartesIguales(cuenta!.totalConsumido, n);
     setPartes(
       iguales.map((monto, i) => ({
         monto: String(monto),
@@ -130,10 +140,8 @@ export function MesaDetallePage() {
   }
 
   const sumaPartes = partes.reduce((s, p) => s + (Number(p.monto) || 0), 0);
-  const diferenciaPartes = espacio.totalConsumido - sumaPartes;
+  const diferenciaPartes = cuenta.totalConsumido - sumaPartes;
 
-  // Si el método es fiado (único o en alguna parte dividida) pero no se eligió
-  // cliente, no se puede confirmar el cierre todavía.
   const faltaClienteUnico = metodoPago === "FIADO" && !clienteIdFiado;
   const faltaClienteDividido = dividiendo && partes.some((p) => p.metodoPago === "FIADO" && !p.clienteId);
 
@@ -154,17 +162,17 @@ export function MesaDetallePage() {
     }
   }
 
-  // Vista reducida: esta mesa está unida a otra, todo se maneja desde ahí.
-  if (espacio.unidaA) {
+  // Vista reducida: esta cuenta está unida a otra, todo se maneja desde ahí.
+  if (cuenta.unidaA) {
     return (
       <div className="p-8">
-        <button onClick={() => navigate("/mesas")} className="text-sm text-ink-muted hover:text-ink mb-4">
-          ← Volver a Mesas y Barras
+        <button onClick={() => navigate("/cuentas")} className="text-sm text-ink-muted hover:text-ink mb-4">
+          ← Volver a Cuentas
         </button>
         <Card className="max-w-md">
-          <h1 className="font-display uppercase text-xl font-bold text-ink mb-2">{espacio.nombre}</h1>
+          <h1 className="font-display uppercase text-xl font-bold text-ink mb-2">{cuenta.nombre}</h1>
           <p className="text-ink-muted text-sm mb-4">
-            Esta mesa está unida a <strong className="text-ink">{espacio.unidaA}</strong>. El consumo,
+            Esta cuenta está unida a <strong className="text-ink">{cuenta.unidaA}</strong>. El consumo,
             los pedidos y el cierre se manejan desde ahí.
           </p>
           <Button
@@ -172,7 +180,7 @@ export function MesaDetallePage() {
             onClick={() => separarMutation.mutate()}
             disabled={separarMutation.isPending}
           >
-            {separarMutation.isPending ? "Separando..." : "Separar de esa mesa"}
+            {separarMutation.isPending ? "Separando..." : "Separar de esa cuenta"}
           </Button>
         </Card>
       </div>
@@ -182,31 +190,32 @@ export function MesaDetallePage() {
   return (
     <div className="p-8">
       <button
-        onClick={() => navigate("/mesas")}
+        onClick={() => navigate("/cuentas")}
         className="text-sm text-ink-muted hover:text-ink mb-4"
       >
-        ← Volver a Mesas y Barras
+        ← Volver a Cuentas
       </button>
 
       <header className="flex items-start justify-between mb-8">
         <div>
           <h1 className="font-display uppercase text-2xl font-bold tracking-wide text-ink">
-            {espacio.nombre}
+            {cuenta.nombre}
           </h1>
           <p className="text-ink-muted text-sm mt-1">
-            Abierta hace {espacio.tiempoAbiertaMinutos} min
-            {espacio.descripcion ? ` · ${espacio.descripcion}` : ""}
+            {cuenta.espacio ? `${cuenta.espacio.nombre} · ` : ""}
+            Abierta hace {cuenta.tiempoAbiertaMinutos} min
+            {cuenta.descripcion ? ` · ${cuenta.descripcion}` : ""}
           </p>
-          {espacio.mesasUnidas.length > 0 && (
+          {cuenta.cuentasUnidas.length > 0 && (
             <p className="text-xs text-rock-bright mt-1">
-              Unida con: {espacio.mesasUnidas.join(", ")}
+              Unida con: {cuenta.cuentasUnidas.join(", ")}
             </p>
           )}
         </div>
         <div className="text-right">
           <p className="text-xs text-ink-muted uppercase tracking-wide">Total consumido</p>
           <p className="font-display text-3xl font-bold text-ink">
-            {formatoMoneda(espacio.totalConsumido)}
+            {formatoMoneda(cuenta.totalConsumido)}
           </p>
         </div>
       </header>
@@ -220,12 +229,12 @@ export function MesaDetallePage() {
           {repetirMutation.isPending ? "Repitiendo..." : "Repetir última ronda"}
         </Button>
         <Button variant="secondary" onClick={() => setModalUnirAbierto(true)}>
-          Unir mesa
+          Unir cuenta
         </Button>
         <Button
           variant="secondary"
-          onClick={() => window.open(`/mesas/${id}/precuenta`, "_blank")}
-          disabled={espacio.totalConsumido === 0}
+          onClick={() => window.open(`/cuentas/${id}/precuenta`, "_blank")}
+          disabled={cuenta.totalConsumido === 0}
         >
           Precuenta
         </Button>
@@ -236,7 +245,7 @@ export function MesaDetallePage() {
             setDividiendo(false);
             setMetodoPago("EFECTIVO");
             setClienteIdFiado("");
-            if (espacio.totalConsumido === 0) {
+            if (cuenta.totalConsumido === 0) {
               cerrarMutation.mutate({});
             } else {
               setModalCierreAbierto(true);
@@ -244,20 +253,20 @@ export function MesaDetallePage() {
           }}
           disabled={cerrarMutation.isPending}
         >
-          {cerrarMutation.isPending ? "Cerrando..." : "Cerrar mesa"}
+          {cerrarMutation.isPending ? "Cerrando..." : "Cerrar cuenta"}
         </Button>
-        <Button onClick={() => navigate(`/mesas/${id}/pedido`)}>+ Agregar productos</Button>
+        <Button onClick={() => navigate(`/cuentas/${id}/pedido`)}>+ Agregar productos</Button>
       </div>
 
       <Card>
         <h2 className="font-display uppercase text-sm font-semibold tracking-wide text-ink-muted mb-4">
-          Pedidos de esta sesión
+          Pedidos de esta cuenta
         </h2>
 
         {pedidosQuery.isLoading && <p className="text-sm text-ink-muted">Cargando pedidos...</p>}
 
         {pedidosQuery.data?.length === 0 && (
-          <p className="text-sm text-ink-muted">Todavía no se ha enviado ningún pedido a esta mesa.</p>
+          <p className="text-sm text-ink-muted">Todavía no se ha enviado ningún pedido a esta cuenta.</p>
         )}
 
         <div className="flex flex-col gap-4">
@@ -275,7 +284,7 @@ export function MesaDetallePage() {
               <ul className="flex flex-col gap-1.5">
                 {pedido.items.map((item) => (
                   <li key={item.id} className="flex items-center justify-between text-sm">
-                    <span className="text-ink">
+                    <span className={item.estado === "CANCELADO" ? "text-ink-muted line-through" : "text-ink"}>
                       {item.cantidad}× {item.producto.nombre}
                     </span>
                     <div className="flex items-center gap-2">
@@ -283,6 +292,19 @@ export function MesaDetallePage() {
                         {formatoMoneda(item.precioUnitario * item.cantidad)}
                       </span>
                       <Badge estado={item.estado} />
+                      {item.estado !== "CANCELADO" && (
+                        <button
+                          onClick={() => {
+                            if (window.confirm(`¿Cancelar ${item.cantidad}× ${item.producto.nombre}?`)) {
+                              cancelarItemMutation.mutate(item.id);
+                            }
+                          }}
+                          disabled={cancelarItemMutation.isPending}
+                          className="text-xs text-ink-muted hover:text-rock-bright underline"
+                        >
+                          Cancelar
+                        </button>
+                      )}
                     </div>
                   </li>
                 ))}
@@ -295,13 +317,13 @@ export function MesaDetallePage() {
       <Modal
         open={modalCierreAbierto}
         onClose={() => setModalCierreAbierto(false)}
-        title="Cerrar mesa"
+        title="Cerrar cuenta"
       >
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <span className="text-ink-muted text-sm">Total a cobrar</span>
             <span className="font-display text-2xl font-bold text-ink">
-              {formatoMoneda(espacio.totalConsumido)}
+              {formatoMoneda(cuenta.totalConsumido)}
             </span>
           </div>
 
@@ -432,7 +454,7 @@ export function MesaDetallePage() {
           )}
 
           {cerrarMutation.isError && (
-            <p className="text-sm text-rock-bright">No se pudo cerrar la mesa. Intenta de nuevo.</p>
+            <p className="text-sm text-rock-bright">No se pudo cerrar la cuenta. Intenta de nuevo.</p>
           )}
 
           <Button
@@ -449,8 +471,8 @@ export function MesaDetallePage() {
         </div>
       </Modal>
 
-      <UnirMesasModal
-        espacio={espacio}
+      <UnirCuentasModal
+        cuenta={cuenta}
         open={modalUnirAbierto}
         onClose={() => setModalUnirAbierto(false)}
       />

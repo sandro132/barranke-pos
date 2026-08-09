@@ -14,7 +14,7 @@ export interface VentaDTO {
   total: number;
   metodoPago: string;
   fecha: string;
-  espacio: { id: string; nombre: string };
+  cuenta: { id: string; nombre: string; espacio: { nombre: string } | null };
 }
 
 export interface ResumenCajaDTO {

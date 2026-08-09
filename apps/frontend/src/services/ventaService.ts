@@ -3,7 +3,8 @@ import { apiRequest } from "./api";
 export interface TicketDTO {
   id: string;
   fecha: string;
-  espacio: string;
+  cuenta: string;
+  espacio: string | null;
   usuario: string;
   metodoPago: string;
   subtotal: number;
@@ -17,7 +18,7 @@ export interface VentaDTO {
   total: number;
   metodoPago: string;
   fecha: string;
-  espacio: { id: string; nombre: string };
+  cuenta: { id: string; nombre: string; espacio: { nombre: string } | null };
   cliente: { id: string; nombre: string } | null;
   caja: { id: string; abierta: boolean } | null;
 }
@@ -36,4 +37,11 @@ export function listarVentas(desde?: string, hasta?: string) {
 
 export function anularVenta(ventaId: string) {
   return apiRequest<void>(`/ventas/${ventaId}`, { method: "DELETE" });
+}
+
+export function cambiarMetodoPago(ventaId: string, metodoPago: string, clienteId?: string) {
+  return apiRequest<TicketDTO>(`/ventas/${ventaId}/metodo-pago`, {
+    method: "PATCH",
+    body: { metodoPago, clienteId },
+  });
 }

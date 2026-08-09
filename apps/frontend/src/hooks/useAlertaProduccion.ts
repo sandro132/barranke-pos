@@ -10,12 +10,12 @@ interface ItemPedidoSocket {
 }
 
 interface PedidoNuevoSocket {
-  espacio?: { nombre: string };
+  cuenta?: { nombre: string };
   items: ItemPedidoSocket[];
 }
 
 interface ItemActualizadoSocket {
-  item: ItemPedidoSocket & { pedido?: { espacio?: { nombre: string } } };
+  item: ItemPedidoSocket & { pedido?: { cuenta?: { nombre: string } } };
 }
 
 /**
@@ -76,7 +76,7 @@ export function useAlertaProduccion(area: "COCINA" | "BARRA") {
 
       reproducirTono(880, 250);
       const resumen = itemsDeEstaArea.map((i) => `${i.cantidad}× ${i.producto.nombre}`).join(", ");
-      notificar(`Nuevo pedido — ${pedido.espacio?.nombre ?? ""}`, resumen);
+      notificar(`Nuevo pedido — ${pedido.cuenta?.nombre ?? ""}`, resumen);
     }
 
     function onItemActualizado(payload: ItemActualizadoSocket) {
@@ -84,8 +84,8 @@ export function useAlertaProduccion(area: "COCINA" | "BARRA") {
       if (!item || item.areaPreparacion !== area || item.estado !== "LISTO") return;
 
       reproducirTono(1200, 180);
-      const mesa = item.pedido?.espacio?.nombre;
-      notificar(`Listo — ${item.producto.nombre}`, mesa ? `Para ${mesa}` : "Listo para entregar");
+      const nombreCuenta = item.pedido?.cuenta?.nombre;
+      notificar(`Listo — ${item.producto.nombre}`, nombreCuenta ? `Para ${nombreCuenta}` : "Listo para entregar");
     }
 
     socket.on(SOCKET_EVENTS.PEDIDO_NUEVO, onPedidoNuevo);

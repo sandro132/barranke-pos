@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Card } from "../../components/ui/Card";
@@ -8,6 +8,8 @@ import { Input } from "../../components/ui/Input";
 import { formatoMoneda } from "../../utils/format";
 import { ApiError } from "../../services/api";
 import { actualizarCompra, anularCompra, CompraDTO, listarCompras } from "../../services/compraService";
+import { listarProveedores } from "../../services/proveedorService";
+import { ProveedoresModal } from "./ProveedoresModal";
 
 function EditarCompraModal({
   compra,
@@ -17,12 +19,25 @@ function EditarCompraModal({
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
-  const [proveedor, setProveedor] = useState(compra?.proveedor ?? "");
+  const [proveedorId, setProveedorId] = useState(compra?.proveedorId ?? "");
   const [factura, setFactura] = useState(compra?.factura ?? "");
   const [error, setError] = useState<string | null>(null);
 
+  const proveedoresQuery = useQuery({
+    queryKey: ["proveedores"],
+    queryFn: listarProveedores,
+    enabled: !!compra,
+  });
+
+  useEffect(() => {
+    if (compra) {
+      setProveedorId(compra.proveedorId);
+      setFactura(compra.factura ?? "");
+    }
+  }, [compra]);
+
   const mutation = useMutation({
-    mutationFn: () => actualizarCompra(compra!.id, proveedor, factura || undefined),
+    mutationFn: () => actualizarCompra(compra!.id, proveedorId, factura || undefined),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["compras"] });
       onClose();
@@ -37,14 +52,27 @@ function EditarCompraModal({
           Aquí solo puedes corregir el proveedor o el número de factura — no afectan el inventario. Si el
           error fue en las cantidades, costos o productos, anula esta compra y regístrala de nuevo bien.
         </p>
-        <Input label="Proveedor" value={proveedor} onChange={(e) => setProveedor(e.target.value)} />
+        <div className="flex flex-col gap-1.5">
+          <label className="text-sm font-medium text-ink-muted">Proveedor</label>
+          <select
+            value={proveedorId}
+            onChange={(e) => setProveedorId(e.target.value)}
+            className="bg-surface border border-border rounded-md px-4 py-3 text-ink focus:border-rock transition-colors"
+          >
+            {proveedoresQuery.data?.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.nombre}
+              </option>
+            ))}
+          </select>
+        </div>
         <Input
           label="Factura (opcional)"
           value={factura}
           onChange={(e) => setFactura(e.target.value)}
         />
         {error && <p className="text-sm text-rock-bright">{error}</p>}
-        <Button fullWidth disabled={!proveedor.trim() || mutation.isPending} onClick={() => mutation.mutate()}>
+        <Button fullWidth disabled={!proveedorId || mutation.isPending} onClick={() => mutation.mutate()}>
           {mutation.isPending ? "Guardando..." : "Guardar cambios"}
         </Button>
       </div>
@@ -56,6 +84,7 @@ export function ComprasPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [editando, setEditando] = useState<CompraDTO | null>(null);
+  const [modalProveedoresAbierto, setModalProveedoresAbierto] = useState(false);
   const { data: compras, isLoading } = useQuery({ queryKey: ["compras"], queryFn: listarCompras });
 
   const anularMutation = useMutation({
@@ -69,12 +98,17 @@ export function ComprasPage() {
 
   return (
     <div className="p-8">
-      <header className="mb-6 flex items-start justify-between">
+      <header className="mb-6 flex items-start justify-between flex-wrap gap-3">
         <div>
           <h1 className="font-display uppercase text-2xl font-bold tracking-wide text-ink">Compras</h1>
           <p className="text-ink-muted text-sm mt-1">Registro de compras a proveedores e inventario</p>
         </div>
-        <Button onClick={() => navigate("/compras/nueva")}>+ Nueva compra</Button>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={() => setModalProveedoresAbierto(true)}>
+            Proveedores
+          </Button>
+          <Button onClick={() => navigate("/compras/nueva")}>+ Nueva compra</Button>
+        </div>
       </header>
 
       {isLoading ? (
@@ -87,7 +121,7 @@ export function ComprasPage() {
             <Card key={compra.id}>
               <div className="flex items-start justify-between mb-2 gap-3">
                 <div>
-                  <p className="font-display font-semibold text-ink">{compra.proveedor}</p>
+                  <p className="font-display font-semibold text-ink">{compra.proveedor.nombre}</p>
                   <p className="text-xs text-ink-muted mt-0.5">
                     {new Date(compra.fecha).toLocaleString("es-CO", {
                       dateStyle: "medium",
@@ -108,7 +142,7 @@ export function ComprasPage() {
                     onClick={() => {
                       if (
                         window.confirm(
-                          `¿Anular la compra a ${compra.proveedor} por ${formatoMoneda(compra.total)}? Esto resta del inventario lo que esta compra había sumado, y no se puede deshacer.`
+                          `¿Anular la compra a ${compra.proveedor.nombre} por ${formatoMoneda(compra.total)}? Esto resta del inventario lo que esta compra había sumado, y no se puede deshacer.`
                         )
                       ) {
                         anularMutation.mutate(compra.id);
@@ -142,6 +176,10 @@ export function ComprasPage() {
       )}
 
       <EditarCompraModal compra={editando} onClose={() => setEditando(null)} />
+      <ProveedoresModal
+        open={modalProveedoresAbierto}
+        onClose={() => setModalProveedoresAbierto(false)}
+      />
     </div>
   );
 }

@@ -16,10 +16,12 @@ export enum TipoEspacio {
   BARRA = "BARRA",
 }
 
-export enum EstadoEspacio {
-  LIBRE = "LIBRE",
-  OCUPADA = "OCUPADA",
-  RESERVADA = "RESERVADA",
+// Antes existía EstadoEspacio (LIBRE/OCUPADA/RESERVADA): ahora el estado
+// "abierto/cerrado" vive en Cuenta, no en Espacio (una mesa ya no se
+// "ocupa", puede tener varias cuentas abiertas al mismo tiempo o ninguna).
+export enum EstadoCuenta {
+  ABIERTA = "ABIERTA",
+  CERRADA = "CERRADA",
 }
 
 // Nota: las categorías de producto (antes un enum fijo aquí) ahora son una
@@ -119,4 +121,5 @@ export const SOCKET_EVENTS = {
   PEDIDO_NUEVO: "pedido:nuevo",
   PEDIDO_ITEM_ACTUALIZADO: "pedido:item-actualizado",
   ESPACIO_ACTUALIZADO: "espacio:actualizado",
+  CUENTA_ACTUALIZADA: "cuenta:actualizada",
 } as const;

@@ -35,7 +35,7 @@ export function ItemProduccionCard({
           <p className="font-display font-semibold text-ink text-lg leading-tight">
             {item.cantidad}× {item.producto.nombre}
           </p>
-          <p className="text-xs text-ink-muted mt-1">{item.pedido?.espacio.nombre}</p>
+          <p className="text-xs text-ink-muted mt-1">{item.pedido?.cuenta.nombre}</p>
         </div>
         <span className={`text-xs font-medium ${urgente ? "text-rock-bright" : "text-ink-muted"}`}>
           hace {minutos} min

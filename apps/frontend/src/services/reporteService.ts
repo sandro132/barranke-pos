@@ -59,6 +59,13 @@ export interface ConsumoInternoReporteDTO {
   porItem: { nombre: string; costo: number; cantidad: number }[];
 }
 
+export interface ComprasReporteDTO {
+  totalGastado: number;
+  totalCompras: number;
+  porProveedor: { nombre: string; total: number; cantidadCompras: number }[];
+  porItem: { nombre: string; cantidad: number; total: number }[];
+}
+
 function query(desde?: string, hasta?: string, extra?: Record<string, string>) {
   const params = new URLSearchParams();
   if (desde) params.set("desde", desde);
@@ -98,4 +105,8 @@ export function obtenerInventarioReporte() {
 
 export function obtenerConsumoInternoReporte(desde?: string, hasta?: string) {
   return apiRequest<ConsumoInternoReporteDTO>(`/reportes/consumo-interno${query(desde, hasta)}`);
+}
+
+export function obtenerComprasReporte(desde?: string, hasta?: string) {
+  return apiRequest<ComprasReporteDTO>(`/reportes/compras${query(desde, hasta)}`);
 }

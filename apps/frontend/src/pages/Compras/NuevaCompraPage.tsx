@@ -6,6 +6,7 @@ import { Input } from "../../components/ui/Input";
 import { formatoMoneda } from "../../utils/format";
 import { listarProductos, ProductoDTO } from "../../services/productoService";
 import { listarIngredientes, IngredienteDTO } from "../../services/ingredienteService";
+import { listarProveedores } from "../../services/proveedorService";
 import { crearCompra } from "../../services/compraService";
 import { ApiError } from "../../services/api";
 
@@ -24,10 +25,12 @@ export function NuevaCompraPage() {
   const queryClient = useQueryClient();
 
   const [tab, setTab] = useState<Tipo>("producto");
-  const [proveedor, setProveedor] = useState("");
+  const [proveedorId, setProveedorId] = useState("");
   const [factura, setFactura] = useState("");
   const [carrito, setCarrito] = useState<Record<string, ItemCarritoCompra>>({});
   const [error, setError] = useState<string | null>(null);
+
+  const proveedoresQuery = useQuery({ queryKey: ["proveedores"], queryFn: listarProveedores });
 
   const productosQuery = useQuery({
     queryKey: ["productos", "todos"],
@@ -87,7 +90,7 @@ export function NuevaCompraPage() {
   const crearMutation = useMutation({
     mutationFn: () =>
       crearCompra(
-        proveedor,
+        proveedorId,
         factura.trim() ? factura.trim() : undefined,
         items.map((i) => ({
           productoId: i.tipo === "producto" ? i.id : undefined,
@@ -197,12 +200,27 @@ export function NuevaCompraPage() {
       {/* Carrito de compra */}
       <div className="w-full lg:w-[28rem] shrink-0 bg-surface border-t lg:border-t-0 lg:border-l border-border flex flex-col">
         <div className="p-5 border-b border-border flex flex-col gap-3">
-          <Input
-            label="Proveedor"
-            placeholder="Ej: Distribuidora La Rebaja"
-            value={proveedor}
-            onChange={(e) => setProveedor(e.target.value)}
-          />
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-ink-muted">Proveedor</label>
+            {proveedoresQuery.data?.length === 0 ? (
+              <p className="text-xs text-rock-bright">
+                No hay proveedores creados todavía. Ve a Compras → "Proveedores" para crear uno primero.
+              </p>
+            ) : (
+              <select
+                value={proveedorId}
+                onChange={(e) => setProveedorId(e.target.value)}
+                className="bg-surface border border-border rounded-md px-4 py-3 text-ink focus:border-rock transition-colors"
+              >
+                <option value="">Selecciona un proveedor...</option>
+                {proveedoresQuery.data?.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.nombre}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
           <Input
             label="Factura (opcional)"
             placeholder="Ej: FV-00123"
@@ -268,7 +286,7 @@ export function NuevaCompraPage() {
           </div>
           <Button
             fullWidth
-            disabled={items.length === 0 || !proveedor.trim() || !itemsValidos || crearMutation.isPending}
+            disabled={items.length === 0 || !proveedorId || !itemsValidos || crearMutation.isPending}
             onClick={() => {
               setError(null);
               crearMutation.mutate();

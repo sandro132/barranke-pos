@@ -6,7 +6,7 @@ import { CambiarPasswordModal } from "../components/CambiarPasswordModal";
 
 const NAV_ITEMS = [
   { to: "/", label: "Dashboard", end: true },
-  { to: "/mesas", label: "Mesas y Barras" },
+  { to: "/cuentas", label: "Cuentas" },
   { to: "/productos", label: "Productos" },
   { to: "/ingredientes", label: "Ingredientes" },
   { to: "/cocina", label: "Cocina" },

@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card } from "../../components/ui/Card";
 import { formatoMoneda } from "../../utils/format";
 import { anularVenta, listarVentas } from "../../services/ventaService";
+import { CambiarMetodoPagoModal, VentaParaCorregir } from "../../components/CambiarMetodoPagoModal";
 
 const ETIQUETAS_METODO: Record<string, string> = {
   EFECTIVO: "Efectivo",
@@ -17,8 +18,13 @@ const ETIQUETAS_METODO: Record<string, string> = {
 
 type Preset = "hoy" | "semana" | "mes" | "todas";
 
+// OJO: nunca usar toISOString() aquí — convierte a UTC, y en horas de la
+// noche eso hace que "hoy" se calcule como el día SIGUIENTE en Colombia.
 function toISODate(d: Date) {
-  return d.toISOString().slice(0, 10);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function calcularRango(preset: Preset): { desde?: string; hasta?: string } {
@@ -39,6 +45,7 @@ function calcularRango(preset: Preset): { desde?: string; hasta?: string } {
 export function VentasPage() {
   const queryClient = useQueryClient();
   const [preset, setPreset] = useState<Preset>("semana");
+  const [corrigiendo, setCorrigiendo] = useState<VentaParaCorregir | null>(null);
   const { desde, hasta } = useMemo(() => calcularRango(preset), [preset]);
 
   const ventasQuery = useQuery({
@@ -96,7 +103,10 @@ export function VentasPage() {
               >
                 <div>
                   <p className="text-ink">
-                    {v.espacio.nombre}
+                    {v.cuenta.nombre}
+                    {v.cuenta.espacio && (
+                      <span className="text-ink-muted"> ({v.cuenta.espacio.nombre})</span>
+                    )}
                     {v.cliente && (
                       <span className="text-ink-muted"> · fiado a {v.cliente.nombre}</span>
                     )}
@@ -120,10 +130,23 @@ export function VentasPage() {
                     Ver ticket
                   </Link>
                   <button
+                    onClick={() =>
+                      setCorrigiendo({
+                        id: v.id,
+                        cuentaNombre: v.cuenta.nombre,
+                        total: v.total,
+                        metodoPagoActual: v.metodoPago,
+                      })
+                    }
+                    className="text-xs text-ink-muted hover:text-ink underline"
+                  >
+                    Corregir método
+                  </button>
+                  <button
                     onClick={() => {
                       if (
                         window.confirm(
-                          `¿Anular la venta de ${v.espacio.nombre} por ${formatoMoneda(v.total)}? Esto no se puede deshacer.`
+                          `¿Anular la venta de ${v.cuenta.nombre} por ${formatoMoneda(v.total)}? Esto no se puede deshacer.`
                         )
                       ) {
                         anularMutation.mutate(v.id);
@@ -140,6 +163,8 @@ export function VentasPage() {
           </div>
         )}
       </Card>
+
+      <CambiarMetodoPagoModal venta={corrigiendo} onClose={() => setCorrigiendo(null)} />
     </div>
   );
 }

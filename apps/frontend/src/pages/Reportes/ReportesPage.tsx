@@ -13,6 +13,7 @@ import { Card } from "../../components/ui/Card";
 import { formatoMoneda } from "../../utils/format";
 import {
   obtenerCategoriasReporte,
+  obtenerComprasReporte,
   obtenerConsumoInternoReporte,
   obtenerGanancias,
   obtenerInventarioReporte,
@@ -33,8 +34,14 @@ const ETIQUETAS_METODO: Record<string, string> = {
   OTRO: "Otro",
 };
 
+// OJO: nunca usar toISOString() aquí — convierte a UTC, y como Colombia
+// está detrás de UTC, en horas de la noche eso hace que "hoy" se calcule
+// como el día SIGUIENTE. Hay que armar la fecha con los componentes locales.
 function toISODate(d: Date) {
-  return d.toISOString().slice(0, 10);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function calcularRango(preset: Preset): { desde: string; hasta: string; agrupacion: "dia" | "mes" } {
@@ -105,6 +112,10 @@ export function ReportesPage() {
   const consumoInternoQuery = useQuery({
     queryKey: ["reportes", "consumo-interno", desde, hasta],
     queryFn: () => obtenerConsumoInternoReporte(desde, hasta),
+  });
+  const comprasReporteQuery = useQuery({
+    queryKey: ["reportes", "compras", desde, hasta],
+    queryFn: () => obtenerComprasReporte(desde, hasta),
   });
 
   const maxMetodo = Math.max(1, ...(metodosQuery.data ?? []).map((m) => m.total));
@@ -357,6 +368,57 @@ export function ReportesPage() {
                         {i.nombre} ({i.cantidad})
                       </span>
                       <span className="text-ink-muted">{formatoMoneda(i.costo)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </>
+        )}
+      </Card>
+
+      <Card className="mt-6">
+        <h2 className="font-display uppercase text-sm font-semibold tracking-wide text-ink-muted mb-4">
+          Compras
+        </h2>
+        {comprasReporteQuery.isLoading ? (
+          <p className="text-sm text-ink-muted">Cargando...</p>
+        ) : comprasReporteQuery.data?.totalCompras === 0 ? (
+          <p className="text-sm text-ink-muted">Sin compras registradas en este rango.</p>
+        ) : (
+          <>
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-ink-muted text-sm">
+                Total gastado ({comprasReporteQuery.data?.totalCompras} compra
+                {comprasReporteQuery.data?.totalCompras === 1 ? "" : "s"})
+              </span>
+              <span className="font-display text-2xl font-bold text-ink">
+                {formatoMoneda(comprasReporteQuery.data?.totalGastado ?? 0)}
+              </span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <p className="text-xs text-ink-muted uppercase tracking-wide mb-2">Por proveedor</p>
+                <ul className="flex flex-col gap-1.5">
+                  {comprasReporteQuery.data?.porProveedor.map((p) => (
+                    <li key={p.nombre} className="text-sm flex justify-between">
+                      <span className="text-ink">
+                        {p.nombre} ({p.cantidadCompras})
+                      </span>
+                      <span className="text-ink-muted">{formatoMoneda(p.total)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div>
+                <p className="text-xs text-ink-muted uppercase tracking-wide mb-2">Qué se compró más</p>
+                <ul className="flex flex-col gap-1.5">
+                  {comprasReporteQuery.data?.porItem.slice(0, 8).map((i) => (
+                    <li key={i.nombre} className="text-sm flex justify-between">
+                      <span className="text-ink">
+                        {i.nombre} ({i.cantidad})
+                      </span>
+                      <span className="text-ink-muted">{formatoMoneda(i.total)}</span>
                     </li>
                   ))}
                 </ul>

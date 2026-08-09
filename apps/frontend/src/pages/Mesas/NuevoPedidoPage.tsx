@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "../../components/ui/Button";
 import { Input } from "../../components/ui/Input";
-import { obtenerEspacio } from "../../services/espacioService";
+import { obtenerCuenta } from "../../services/cuentaService";
 import { crearPedido } from "../../services/pedidoService";
 import { listarProductos, ProductoDTO } from "../../services/productoService";
 import { listarPromociones } from "../../services/promocionService";
@@ -71,9 +71,9 @@ export function NuevoPedidoPage() {
   const [carrito, setCarrito] = useState<Record<string, ItemCarrito>>({});
   const [error, setError] = useState<string | null>(null);
 
-  const espacioQuery = useQuery({
-    queryKey: ["espacio", id],
-    queryFn: () => obtenerEspacio(id!),
+  const cuentaQuery = useQuery({
+    queryKey: ["cuenta", id],
+    queryFn: () => obtenerCuenta(id!),
     enabled: !!id,
   });
 
@@ -169,10 +169,10 @@ export function NuevoPedidoPage() {
         items.map((i) => ({ productoId: i.producto.id, cantidad: i.cantidad }))
       ),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["pedidos", "espacio", id] });
-      queryClient.invalidateQueries({ queryKey: ["espacio", id] });
-      queryClient.invalidateQueries({ queryKey: ["espacios"] });
-      navigate(`/mesas/${id}`);
+      queryClient.invalidateQueries({ queryKey: ["pedidos", "cuenta", id] });
+      queryClient.invalidateQueries({ queryKey: ["cuenta", id] });
+      queryClient.invalidateQueries({ queryKey: ["cuentas"] });
+      navigate(`/cuentas/${id}`);
     },
     onError: (err) => {
       setError(err instanceof ApiError ? err.message : "No se pudo enviar el pedido");
@@ -184,14 +184,14 @@ export function NuevoPedidoPage() {
       {/* Catálogo */}
       <div className="flex-1 overflow-y-auto p-6">
         <button
-          onClick={() => navigate(`/mesas/${id}`)}
+          onClick={() => navigate(`/cuentas/${id}`)}
           className="text-sm text-ink-muted hover:text-ink mb-4"
         >
-          ← Volver a {espacioQuery.data?.nombre ?? "la mesa"}
+          ← Volver a {cuentaQuery.data?.nombre ?? "la cuenta"}
         </button>
 
         <h1 className="font-display uppercase text-2xl font-bold tracking-wide text-ink mb-4">
-          Nuevo pedido — {espacioQuery.data?.nombre}
+          Nuevo pedido — {cuentaQuery.data?.nombre}
         </h1>
 
         <div className="mb-4 max-w-sm">

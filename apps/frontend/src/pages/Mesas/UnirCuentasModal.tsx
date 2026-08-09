@@ -2,15 +2,15 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Modal } from "../../components/ui/Modal";
 import { Button } from "../../components/ui/Button";
-import { EspacioDTO, listarEspacios, unirEspacios } from "../../services/espacioService";
+import { CuentaDTO, listarCuentas, unirCuentas } from "../../services/cuentaService";
 import { ApiError } from "../../services/api";
 
-export function UnirMesasModal({
-  espacio,
+export function UnirCuentasModal({
+  cuenta,
   open,
   onClose,
 }: {
-  espacio: EspacioDTO;
+  cuenta: CuentaDTO;
   open: boolean;
   onClose: () => void;
 }) {
@@ -18,26 +18,22 @@ export function UnirMesasModal({
   const [seleccionadas, setSeleccionadas] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  const espaciosQuery = useQuery({ queryKey: ["espacios"], queryFn: listarEspacios, enabled: open });
+  const cuentasQuery = useQuery({ queryKey: ["cuentas"], queryFn: listarCuentas, enabled: open });
 
-  // Solo se pueden unir mesas ocupadas, que no sean esta misma, y que no
-  // estén ya unidas a otra ni tengan a su vez mesas unidas a ellas.
-  const candidatas = (espaciosQuery.data ?? []).filter(
-    (e) =>
-      e.id !== espacio.id &&
-      e.estado === "OCUPADA" &&
-      !e.espacioPadreId &&
-      e.mesasUnidas.length === 0
+  // Solo se pueden unir cuentas abiertas, que no sean esta misma, y que no
+  // estén ya unidas a otra ni tengan a su vez cuentas unidas a ellas.
+  const candidatas = (cuentasQuery.data ?? []).filter(
+    (c) => c.id !== cuenta.id && !c.cuentaPadreId && c.cuentasUnidas.length === 0
   );
 
   const unirMutation = useMutation({
-    mutationFn: () => unirEspacios(espacio.id, seleccionadas),
+    mutationFn: () => unirCuentas(cuenta.id, seleccionadas),
     onSuccess: () => {
-      queryClient.invalidateQueries({ predicate: (q) => q.queryKey[0] === "espacio" || q.queryKey[0] === "espacios" });
+      queryClient.invalidateQueries({ predicate: (q) => q.queryKey[0] === "cuenta" || q.queryKey[0] === "cuentas" });
       setSeleccionadas([]);
       onClose();
     },
-    onError: (err) => setError(err instanceof ApiError ? err.message : "No se pudieron unir las mesas"),
+    onError: (err) => setError(err instanceof ApiError ? err.message : "No se pudieron unir las cuentas"),
   });
 
   function toggle(id: string) {
@@ -45,27 +41,28 @@ export function UnirMesasModal({
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={`Unir mesas a ${espacio.nombre}`}>
+    <Modal open={open} onClose={onClose} title={`Unir cuentas a ${cuenta.nombre}`}>
       <div className="flex flex-col gap-4">
         <p className="text-sm text-ink-muted">
-          El consumo y el cierre de las mesas que elijas se van a manejar desde {espacio.nombre}.
+          El consumo y el cierre de las cuentas que elijas se van a manejar desde {cuenta.nombre}.
         </p>
 
         {candidatas.length === 0 ? (
-          <p className="text-sm text-ink-muted">No hay otras mesas ocupadas disponibles para unir.</p>
+          <p className="text-sm text-ink-muted">No hay otras cuentas abiertas disponibles para unir.</p>
         ) : (
           <div className="flex flex-col gap-2 max-h-64 overflow-y-auto">
-            {candidatas.map((e) => (
+            {candidatas.map((c) => (
               <button
-                key={e.id}
-                onClick={() => toggle(e.id)}
+                key={c.id}
+                onClick={() => toggle(c.id)}
                 className={`text-left px-4 py-2.5 rounded-md text-sm font-medium border transition-colors ${
-                  seleccionadas.includes(e.id)
+                  seleccionadas.includes(c.id)
                     ? "border-rock bg-rock-dim/20 text-ink"
                     : "border-border text-ink-muted hover:text-ink"
                 }`}
               >
-                {e.nombre}
+                {c.nombre}
+                {c.espacio ? ` (${c.espacio.nombre})` : ""}
               </button>
             ))}
           </div>
@@ -81,7 +78,7 @@ export function UnirMesasModal({
             unirMutation.mutate();
           }}
         >
-          {unirMutation.isPending ? "Uniendo..." : `Unir ${seleccionadas.length || ""} mesa(s)`}
+          {unirMutation.isPending ? "Uniendo..." : `Unir ${seleccionadas.length || ""} cuenta(s)`}
         </Button>
       </div>
     </Modal>

@@ -46,7 +46,8 @@ export function TicketPage() {
 
           <div className="border-t border-dashed border-black my-2" />
 
-          <p>Mesa/Barra: {ticket.espacio}</p>
+          <p>Cuenta: {ticket.cuenta}</p>
+          {ticket.espacio && <p>Mesa/Barra: {ticket.espacio}</p>}
           <p>
             Fecha:{" "}
             {new Date(ticket.fecha).toLocaleString("es-CO", {

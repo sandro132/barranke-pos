@@ -1,8 +1,8 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { LoginPage } from "./pages/Login/LoginPage";
 import { DashboardPage } from "./pages/Dashboard/DashboardPage";
-import { MesasPage } from "./pages/Mesas/MesasPage";
-import { MesaDetallePage } from "./pages/Mesas/MesaDetallePage";
+import { CuentasPage } from "./pages/Mesas/CuentasPage";
+import { CuentaDetallePage } from "./pages/Mesas/CuentaDetallePage";
 import { NuevoPedidoPage } from "./pages/Mesas/NuevoPedidoPage";
 import { PrecuentaPage } from "./pages/Mesas/PrecuentaPage";
 import { CocinaPage } from "./pages/Cocina/CocinaPage";
@@ -32,13 +32,13 @@ export function App() {
         <Route element={<RequireAuth />}>
           {/* Fuera del AppLayout a propósito: el ticket y la precuenta no deben mostrar el sidebar al imprimir */}
           <Route path="/ventas/:ventaId/ticket" element={<TicketPage />} />
-          <Route path="/mesas/:id/precuenta" element={<PrecuentaPage />} />
+          <Route path="/cuentas/:id/precuenta" element={<PrecuentaPage />} />
 
           <Route element={<AppLayout />}>
             <Route path="/" element={<DashboardPage />} />
-            <Route path="/mesas" element={<MesasPage />} />
-            <Route path="/mesas/:id" element={<MesaDetallePage />} />
-            <Route path="/mesas/:id/pedido" element={<NuevoPedidoPage />} />
+            <Route path="/cuentas" element={<CuentasPage />} />
+            <Route path="/cuentas/:id" element={<CuentaDetallePage />} />
+            <Route path="/cuentas/:id/pedido" element={<NuevoPedidoPage />} />
             <Route path="/cocina" element={<CocinaPage />} />
             <Route path="/barra" element={<BarraPage />} />
             <Route path="/caja" element={<CajaPage />} />

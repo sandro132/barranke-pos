@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
@@ -6,6 +7,7 @@ import { Badge } from "../../components/ui/Badge";
 import { formatoMoneda } from "../../utils/format";
 import { obtenerDetalleCaja } from "../../services/cajaService";
 import { anularVenta } from "../../services/ventaService";
+import { CambiarMetodoPagoModal, VentaParaCorregir } from "../../components/CambiarMetodoPagoModal";
 
 const ETIQUETAS_METODO: Record<string, string> = {
   EFECTIVO: "Efectivo",
@@ -27,6 +29,8 @@ export function DetalleCajaHistorialPage() {
     queryFn: () => obtenerDetalleCaja(id!),
     enabled: !!id,
   });
+
+  const [corrigiendo, setCorrigiendo] = useState<VentaParaCorregir | null>(null);
 
   const anularVentaMutation = useMutation({
     mutationFn: (ventaId: string) => anularVenta(ventaId),
@@ -142,7 +146,7 @@ export function DetalleCajaHistorialPage() {
                 className="flex items-center justify-between text-sm border-b border-border pb-2 last:border-0"
               >
                 <div>
-                  <p className="text-ink">{v.espacio.nombre}</p>
+                  <p className="text-ink">{v.cuenta.nombre}</p>
                   <p className="text-xs text-ink-muted">
                     {new Date(v.fecha).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })}
                     {" · "}
@@ -159,10 +163,23 @@ export function DetalleCajaHistorialPage() {
                     Ver ticket
                   </Link>
                   <button
+                    onClick={() =>
+                      setCorrigiendo({
+                        id: v.id,
+                        cuentaNombre: v.cuenta.nombre,
+                        total: v.total,
+                        metodoPagoActual: v.metodoPago,
+                      })
+                    }
+                    className="text-xs text-ink-muted hover:text-ink underline"
+                  >
+                    Corregir método
+                  </button>
+                  <button
                     onClick={() => {
                       if (
                         window.confirm(
-                          `¿Anular la venta de ${v.espacio.nombre} por ${formatoMoneda(v.total)}? Esto no se puede deshacer.`
+                          `¿Anular la venta de ${v.cuenta.nombre} por ${formatoMoneda(v.total)}? Esto no se puede deshacer.`
                         )
                       ) {
                         anularVentaMutation.mutate(v.id);
@@ -179,6 +196,8 @@ export function DetalleCajaHistorialPage() {
           </div>
         )}
       </Card>
+
+      <CambiarMetodoPagoModal venta={corrigiendo} onClose={() => setCorrigiendo(null)} />
     </div>
   );
 }

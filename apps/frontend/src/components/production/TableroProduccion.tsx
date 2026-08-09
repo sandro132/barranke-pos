@@ -35,7 +35,7 @@ export function TableroProduccion({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey });
       // El total consumido y el estado de la mesa pueden cambiar (ítems entregados).
-      queryClient.invalidateQueries({ queryKey: ["espacios"] });
+      queryClient.invalidateQueries({ queryKey: ["cuentas"] });
     },
   });
 

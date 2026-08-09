@@ -2,7 +2,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "../../components/ui/Button";
 import { formatoMoneda } from "../../utils/format";
-import { obtenerPrecuenta } from "../../services/espacioService";
+import { obtenerPrecuenta } from "../../services/cuentaService";
 
 export function PrecuentaPage() {
   const { id } = useParams<{ id: string }>();
@@ -29,7 +29,7 @@ export function PrecuentaPage() {
         <p className="text-sm text-ink-muted">Cargando precuenta...</p>
       ) : error || !precuenta ? (
         <p className="text-sm text-rock-bright">
-          No se pudo cargar la precuenta (¿la mesa está unida a otra, o no tiene consumo?).
+          No se pudo cargar la precuenta (¿la cuenta está unida a otra, o no tiene consumo?).
         </p>
       ) : (
         <div className="w-full max-w-xs bg-white text-black font-mono text-xs p-4 rounded shadow-lg print:shadow-none print:rounded-none">
@@ -40,9 +40,9 @@ export function PrecuentaPage() {
 
           <div className="border-t border-dashed border-black my-2" />
 
-          <p>Mesa/Barra: {precuenta.espacio}</p>
-          {precuenta.mesasUnidas.length > 0 && (
-            <p>Unida a: {precuenta.mesasUnidas.join(", ")}</p>
+          <p>Cuenta: {precuenta.cuenta}</p>
+          {precuenta.cuentasUnidas.length > 0 && (
+            <p>Unida a: {precuenta.cuentasUnidas.join(", ")}</p>
           )}
           <p>
             Fecha: {new Date().toLocaleString("es-CO", { dateStyle: "short", timeStyle: "short" })}

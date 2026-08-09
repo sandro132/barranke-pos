@@ -12,7 +12,8 @@ export interface ItemCompraDTO {
 
 export interface CompraDTO {
   id: string;
-  proveedor: string;
+  proveedorId: string;
+  proveedor: { id: string; nombre: string };
   factura: string | null;
   fecha: string;
   total: number;
@@ -30,17 +31,17 @@ export function listarCompras() {
   return apiRequest<CompraDTO[]>("/compras");
 }
 
-export function crearCompra(proveedor: string, factura: string | undefined, items: ItemCompraInput[]) {
+export function crearCompra(proveedorId: string, factura: string | undefined, items: ItemCompraInput[]) {
   return apiRequest<CompraDTO>("/compras", {
     method: "POST",
-    body: { proveedor, factura, items },
+    body: { proveedorId, factura, items },
   });
 }
 
-export function actualizarCompra(id: string, proveedor: string, factura?: string) {
+export function actualizarCompra(id: string, proveedorId: string, factura?: string) {
   return apiRequest<CompraDTO>(`/compras/${id}`, {
     method: "PATCH",
-    body: { proveedor, factura },
+    body: { proveedorId, factura },
   });
 }
 

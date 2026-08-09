@@ -1,5 +1,6 @@
 import { apiRequest } from "./api";
 import { ProductoDTO } from "./productoService";
+import { EspacioDTO } from "./espacioService";
 
 export interface ItemPedidoDTO {
   id: string;
@@ -11,12 +12,12 @@ export interface ItemPedidoDTO {
   estado: "PENDIENTE" | "PREPARANDO" | "LISTO" | "ENTREGADO" | "CANCELADO";
   notas: string | null;
   producto: ProductoDTO;
-  pedido?: { id: string; createdAt: string; espacio: { id: string; nombre: string } };
+  pedido?: { id: string; createdAt: string; cuenta: { id: string; nombre: string; espacio: EspacioDTO | null } };
 }
 
 export interface PedidoDTO {
   id: string;
-  espacioId: string;
+  cuentaId: string;
   usuarioId: string;
   estado: "PENDIENTE" | "PREPARANDO" | "LISTO" | "ENTREGADO" | "CANCELADO";
   createdAt: string;
@@ -24,12 +25,12 @@ export interface PedidoDTO {
   items: ItemPedidoDTO[];
 }
 
-export function listarPorEspacio(espacioId: string) {
-  return apiRequest<PedidoDTO[]>(`/pedidos/espacio/${espacioId}`);
+export function listarPorCuenta(cuentaId: string) {
+  return apiRequest<PedidoDTO[]>(`/pedidos/cuenta/${cuentaId}`);
 }
 
-export function repetirUltimaRonda(espacioId: string) {
-  return apiRequest<PedidoDTO>(`/pedidos/espacio/${espacioId}/repetir-ultima-ronda`, {
+export function repetirUltimaRonda(cuentaId: string) {
+  return apiRequest<PedidoDTO>(`/pedidos/cuenta/${cuentaId}/repetir-ultima-ronda`, {
     method: "POST",
   });
 }
@@ -49,9 +50,13 @@ export function actualizarEstadoItem(itemId: string, estado: string) {
   });
 }
 
-export function crearPedido(espacioId: string, items: { productoId: string; cantidad: number; notas?: string }[]) {
+export function cancelarItem(itemId: string) {
+  return apiRequest<ItemPedidoDTO>(`/pedidos/items/${itemId}/cancelar`, { method: "POST" });
+}
+
+export function crearPedido(cuentaId: string, items: { productoId: string; cantidad: number; notas?: string }[]) {
   return apiRequest<PedidoDTO>(`/pedidos`, {
     method: "POST",
-    body: { espacioId, items },
+    body: { cuentaId, items },
   });
 }

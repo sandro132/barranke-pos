@@ -16,6 +16,7 @@ import {
 } from "../../services/cajaService";
 import { ApiError } from "../../services/api";
 import { anularVenta } from "../../services/ventaService";
+import { CambiarMetodoPagoModal, VentaParaCorregir } from "../../components/CambiarMetodoPagoModal";
 
 const ETIQUETAS_METODO: Record<string, string> = {
   EFECTIVO: "Efectivo",
@@ -131,6 +132,8 @@ export function CajaPage() {
       queryClient.invalidateQueries({ queryKey: ["caja", "actual"] });
     },
   });
+
+  const [corrigiendo, setCorrigiendo] = useState<VentaParaCorregir | null>(null);
 
   const anularVentaMutation = useMutation({
     mutationFn: (ventaId: string) => anularVenta(ventaId),
@@ -265,7 +268,7 @@ export function CajaPage() {
             {[...caja.ventas].reverse().map((v) => (
               <div key={v.id} className="flex items-center justify-between text-sm border-b border-border pb-2 last:border-0">
                 <div>
-                  <p className="text-ink">{v.espacio.nombre}</p>
+                  <p className="text-ink">{v.cuenta.nombre}</p>
                   <p className="text-xs text-ink-muted">
                     {new Date(v.fecha).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })}
                     {" · "}
@@ -282,10 +285,23 @@ export function CajaPage() {
                     Ver ticket
                   </Link>
                   <button
+                    onClick={() =>
+                      setCorrigiendo({
+                        id: v.id,
+                        cuentaNombre: v.cuenta.nombre,
+                        total: v.total,
+                        metodoPagoActual: v.metodoPago,
+                      })
+                    }
+                    className="text-xs text-ink-muted hover:text-ink underline"
+                  >
+                    Corregir método
+                  </button>
+                  <button
                     onClick={() => {
                       if (
                         window.confirm(
-                          `¿Anular la venta de ${v.espacio.nombre} por ${formatoMoneda(v.total)}? Esto no se puede deshacer.`
+                          `¿Anular la venta de ${v.cuenta.nombre} por ${formatoMoneda(v.total)}? Esto no se puede deshacer.`
                         )
                       ) {
                         anularVentaMutation.mutate(v.id);
@@ -410,6 +426,8 @@ export function CajaPage() {
           </div>
         )}
       </Modal>
+
+      <CambiarMetodoPagoModal venta={corrigiendo} onClose={() => setCorrigiendo(null)} />
     </div>
   );
 }
