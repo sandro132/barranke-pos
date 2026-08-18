@@ -1,10 +1,10 @@
 import { Router } from "express";
-import { requireAuth } from "../../middlewares/auth";
+import { requireAuth, requireRole } from "../../middlewares/auth";
 import * as cajaController from "./caja.controller";
 
 const router = Router();
 
-router.use(requireAuth);
+router.use(requireAuth, requireRole("ADMIN"));
 
 router.get("/actual", cajaController.obtenerActualHandler);
 router.post("/abrir", cajaController.abrirHandler);

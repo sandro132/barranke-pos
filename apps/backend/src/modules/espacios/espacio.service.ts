@@ -41,3 +41,22 @@ export async function actualizarEspacio(id: string, data: ActualizarEspacioInput
 
   return prisma.espacio.update({ where: { id }, data });
 }
+
+export async function eliminarEspacio(id: string) {
+  await obtenerEspacioPorId(id);
+
+  // Solo bloquea si hay una cuenta ABIERTA ahora mismo usando esta mesa —
+  // borrarla en ese caso dejaría a alguien "sin mesa" a mitad de servicio.
+  // Las cuentas del historial (ya cerradas) no bloquean el borrado: solo
+  // pierden la referencia a esta mesa (queda en null), sin perder nada de
+  // su información real (nombre, total, fecha, etc.).
+  const abiertaEnUso = await prisma.cuenta.findFirst({ where: { espacioId: id, estado: "ABIERTA" } });
+  if (abiertaEnUso) {
+    throw new AppError(
+      `No se puede eliminar: "${abiertaEnUso.nombre}" está abierta ahora mismo en esta mesa/barra.`,
+      400
+    );
+  }
+
+  await prisma.espacio.delete({ where: { id } });
+}

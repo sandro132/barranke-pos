@@ -18,12 +18,6 @@ declare global {
   }
 }
 
-/**
- * Verifica el header Authorization: Bearer <token>.
- * Nota: por ahora todos los roles tienen el mismo nivel de acceso (según lo pedido),
- * así que este middleware solo valida que el usuario esté autenticado.
- * Cuando se activen los roles diferenciados, aquí se agregará el chequeo de permisos.
- */
 export function requireAuth(req: Request, _res: Response, next: NextFunction) {
   const header = req.headers.authorization;
 
@@ -40,4 +34,22 @@ export function requireAuth(req: Request, _res: Response, next: NextFunction) {
   } catch {
     throw new AppError("Token inválido o expirado", 401);
   }
+}
+
+/**
+ * Limita una ruta a ciertos roles (ej. requireRole("ADMIN")). Debe usarse
+ * SIEMPRE después de requireAuth, nunca solo — necesita que req.user ya
+ * esté cargado. ADMIN puede pasar cualquier chequeo de rol automáticamente,
+ * para no tener que repetirlo en cada ruta.
+ */
+export function requireRole(...rolesPermitidos: string[]) {
+  return (req: Request, _res: Response, next: NextFunction) => {
+    if (!req.user) {
+      throw new AppError("No autenticado", 401);
+    }
+    if (req.user.rol === "ADMIN" || rolesPermitidos.includes(req.user.rol)) {
+      return next();
+    }
+    throw new AppError("No tienes permiso para hacer esto", 403);
+  };
 }

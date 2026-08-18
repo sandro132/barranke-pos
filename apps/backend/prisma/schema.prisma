@@ -64,7 +64,7 @@ model Cuenta {
   descripcion  String?
 
   espacioId String?
-  espacio   Espacio? @relation(fields: [espacioId], references: [id])
+  espacio   Espacio? @relation(fields: [espacioId], references: [id], onDelete: SetNull)
 
   usuarioId String?
   usuario   Usuario? @relation(fields: [usuarioId], references: [id])

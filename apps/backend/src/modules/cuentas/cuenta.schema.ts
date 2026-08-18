@@ -22,6 +22,10 @@ export const actualizarCuentaSchema = z.object({
 export const cerrarCuentaSchema = z.object({
   metodoPago: z.nativeEnum(MetodoPago).optional(),
   clienteId: z.string().optional(),
+  // Monto fijo en pesos a descontar del total antes de cobrar (ej. cortesía,
+  // cliente frecuente). El mesero calcula el % a mano y pone el monto final
+  // — mantiene la lógica del backend simple y a prueba de errores de redondeo.
+  descuento: z.number().nonnegative().optional(),
   pagos: z
     .array(
       z.object({

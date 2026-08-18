@@ -8,6 +8,18 @@ const cambiarMetodoPagoSchema = z.object({
   clienteId: z.string().optional(),
 });
 
+const dividirPagoSchema = z.object({
+  pagos: z
+    .array(
+      z.object({
+        metodoPago: z.string().min(1),
+        monto: z.number().positive(),
+        clienteId: z.string().optional(),
+      })
+    )
+    .min(2, "Se necesitan al menos 2 pagos"),
+});
+
 export const obtenerTicketHandler = asyncHandler(async (req: Request, res: Response) => {
   const ticket = await ventaService.obtenerTicket(req.params.id);
   res.json(ticket);
@@ -30,5 +42,11 @@ export const anularHandler = asyncHandler(async (req: Request, res: Response) =>
 export const cambiarMetodoPagoHandler = asyncHandler(async (req: Request, res: Response) => {
   const { metodoPago, clienteId } = cambiarMetodoPagoSchema.parse(req.body);
   const resultado = await ventaService.cambiarMetodoPago(req.params.id, metodoPago, clienteId);
+  res.json(resultado);
+});
+
+export const dividirPagoHandler = asyncHandler(async (req: Request, res: Response) => {
+  const { pagos } = dividirPagoSchema.parse(req.body);
+  const resultado = await ventaService.dividirPagoVenta(req.params.id, pagos);
   res.json(resultado);
 });

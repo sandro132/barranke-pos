@@ -25,3 +25,8 @@ export const actualizarHandler = asyncHandler(async (req: Request, res: Response
   const espacio = await espacioService.actualizarEspacio(req.params.id, data);
   res.json(espacio);
 });
+
+export const eliminarHandler = asyncHandler(async (req: Request, res: Response) => {
+  await espacioService.eliminarEspacio(req.params.id);
+  res.status(204).send();
+});

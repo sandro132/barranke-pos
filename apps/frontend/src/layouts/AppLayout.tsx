@@ -4,20 +4,23 @@ import { useAuthStore } from "../stores/authStore";
 import { useSocketConnection } from "../hooks/useSocketConnection";
 import { CambiarPasswordModal } from "../components/CambiarPasswordModal";
 
+// roles: [] significa "solo Admin" (ADMIN siempre pasa cualquier chequeo,
+// igual que en el backend — ver RequireRole).
 const NAV_ITEMS = [
-  { to: "/", label: "Dashboard", end: true },
-  { to: "/cuentas", label: "Cuentas" },
-  { to: "/productos", label: "Productos" },
-  { to: "/ingredientes", label: "Ingredientes" },
-  { to: "/cocina", label: "Cocina" },
-  { to: "/barra", label: "Barra" },
-  { to: "/caja", label: "Caja" },
-  { to: "/ventas", label: "Ventas" },
-  { to: "/compras", label: "Compras" },
-  { to: "/consumo-interno", label: "Consumo interno" },
-  { to: "/reportes", label: "Reportes" },
-  { to: "/promociones", label: "Promociones" },
-  { to: "/clientes", label: "Clientes" },
+  { to: "/", label: "Dashboard", end: true, roles: [] as string[] },
+  { to: "/cuentas", label: "Cuentas", roles: ["MESERO"] },
+  { to: "/cocina", label: "Cocina", roles: ["COCINA"] },
+  { to: "/barra", label: "Barra", roles: ["BAR"] },
+  { to: "/consumo-interno", label: "Consumo interno", roles: ["MESERO", "COCINA", "BAR"] },
+  { to: "/clientes", label: "Clientes", roles: ["MESERO"] },
+  { to: "/productos", label: "Productos", roles: [] as string[] },
+  { to: "/ingredientes", label: "Ingredientes", roles: [] as string[] },
+  { to: "/caja", label: "Caja", roles: [] as string[] },
+  { to: "/ventas", label: "Ventas", roles: [] as string[] },
+  { to: "/compras", label: "Compras", roles: [] as string[] },
+  { to: "/reportes", label: "Reportes", roles: [] as string[] },
+  { to: "/promociones", label: "Promociones", roles: [] as string[] },
+  { to: "/usuarios", label: "Usuarios", roles: [] as string[] },
 ];
 
 export function AppLayout() {
@@ -29,6 +32,10 @@ export function AppLayout() {
 
   const usuario = useAuthStore((s) => s.usuario);
   const cerrarSesion = useAuthStore((s) => s.cerrarSesion);
+
+  const itemsVisibles = NAV_ITEMS.filter(
+    (item) => usuario?.rol === "ADMIN" || item.roles.includes(usuario?.rol ?? "")
+  );
 
   return (
     <div className="min-h-screen bg-base flex">
@@ -79,7 +86,7 @@ export function AppLayout() {
         </div>
 
         <nav className="flex-1 px-3 flex flex-col gap-1 overflow-y-auto">
-          {NAV_ITEMS.map((item) => (
+          {itemsVisibles.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}

@@ -9,6 +9,7 @@ import { abrirCuenta, CuentaDTO, listarCuentas } from "../../services/cuentaServ
 import { listarEspacios } from "../../services/espacioService";
 import { getSocket } from "../../sockets/socket";
 import { SOCKET_EVENTS } from "@barranke/shared";
+import { useAuthStore } from "../../stores/authStore";
 import { formatoMoneda } from "../../utils/format";
 import { EspaciosModal } from "./EspaciosModal";
 
@@ -39,6 +40,7 @@ function CuentaCard({ cuenta, onClick }: { cuenta: CuentaDTO; onClick: () => voi
 export function CuentasPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const usuario = useAuthStore((s) => s.usuario);
   const [modalAbrirVisible, setModalAbrirVisible] = useState(false);
   const [modalEspaciosVisible, setModalEspaciosVisible] = useState(false);
   const [nombre, setNombre] = useState("");
@@ -90,9 +92,11 @@ export function CuentasPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="secondary" onClick={() => setModalEspaciosVisible(true)}>
-            Mesas y barras
-          </Button>
+          {usuario?.rol === "ADMIN" && (
+            <Button variant="secondary" onClick={() => setModalEspaciosVisible(true)}>
+              Mesas y barras
+            </Button>
+          )}
           <Button onClick={() => setModalAbrirVisible(true)}>+ Nueva cuenta</Button>
         </div>
       </header>

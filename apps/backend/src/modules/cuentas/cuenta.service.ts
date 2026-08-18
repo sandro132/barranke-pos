@@ -270,7 +270,8 @@ export async function cerrarCuenta(
   usuarioId: string,
   metodoPago?: string,
   pagos?: { metodoPago: string; monto: number; clienteId?: string }[],
-  clienteId?: string
+  clienteId?: string,
+  descuento?: number
 ) {
   const cuenta = await prisma.cuenta.findUnique({ where: { id } });
 
@@ -292,7 +293,12 @@ export async function cerrarCuenta(
 
   const grupo = await obtenerGrupoDeCuentas(cuenta);
   const pedidosDeSesion = await obtenerPedidosDeGrupo(grupo);
-  const total = calcularTotalDePedidos(pedidosDeSesion);
+  const totalOriginal = calcularTotalDePedidos(pedidosDeSesion);
+
+  // El descuento nunca puede dejar el total en negativo, sin importar qué
+  // número escriban por error.
+  const descuentoAplicado = Math.min(Math.max(descuento ?? 0, 0), totalOriginal);
+  const total = totalOriginal - descuentoAplicado;
 
   if (total > 0 && !metodoPago && !pagos) {
     throw new AppError("Selecciona un método de pago para cerrar la cuenta", 400);
@@ -325,6 +331,10 @@ export async function cerrarCuenta(
     if (total > 0) {
       const cajaAbierta = await tx.caja.findFirst({ where: { abierta: true } });
       const listaPagos = pagos ?? [{ metodoPago: metodoPago!, monto: total, clienteId }];
+      // El descuento completo se le atribuye al primer pago (o al único pago,
+      // si no se dividió la cuenta) — es solo para que quede registrado en
+      // algún lado del ticket, no afecta cuánto se cobra realmente.
+      const esPrimerPago = (i: number) => i === 0;
 
       for (let i = 0; i < listaPagos.length; i++) {
         const pago = listaPagos[i];
@@ -334,8 +344,8 @@ export async function cerrarCuenta(
           data: {
             cuentaId: cuenta.id,
             usuarioId,
-            subtotal: pago.monto,
-            descuento: 0,
+            subtotal: esPrimerPago(i) ? pago.monto + descuentoAplicado : pago.monto,
+            descuento: esPrimerPago(i) ? descuentoAplicado : 0,
             total: pago.monto,
             metodoPago: pago.metodoPago,
             cajaId: cajaAbierta?.id ?? null,

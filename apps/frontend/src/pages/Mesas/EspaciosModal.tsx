@@ -4,7 +4,7 @@ import { Modal } from "../../components/ui/Modal";
 import { Input } from "../../components/ui/Input";
 import { Button } from "../../components/ui/Button";
 import { ApiError } from "../../services/api";
-import { actualizarEspacio, crearEspacio, EspacioDTO, listarEspacios } from "../../services/espacioService";
+import { actualizarEspacio, crearEspacio, EspacioDTO, eliminarEspacio, listarEspacios } from "../../services/espacioService";
 
 const VACIO = { nombre: "", tipo: "MESA" as "MESA" | "BARRA", capacidad: "" };
 
@@ -54,6 +54,12 @@ export function EspaciosModal({ open, onClose }: { open: boolean; onClose: () =>
     onError: (err) => setError(err instanceof ApiError ? err.message : "No se pudo guardar"),
   });
 
+  const eliminarMutation = useMutation({
+    mutationFn: (id: string) => eliminarEspacio(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["espacios"] }),
+    onError: (err) => setError(err instanceof ApiError ? err.message : "No se pudo eliminar"),
+  });
+
   return (
     <Modal open={open} onClose={onClose} title="Mesas y barras (referencia física)">
       <div className="flex flex-col gap-4">
@@ -76,12 +82,26 @@ export function EspaciosModal({ open, onClose }: { open: boolean; onClose: () =>
                   {e.capacidad ? ` · Capacidad ${e.capacidad}` : ""}
                 </p>
               </div>
-              <button
-                onClick={() => iniciarEdicion(e)}
-                className="text-xs text-ink-muted hover:text-ink underline"
-              >
-                Editar
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => iniciarEdicion(e)}
+                  className="text-xs text-ink-muted hover:text-ink underline"
+                >
+                  Editar
+                </button>
+                <button
+                  onClick={() => {
+                    setError(null);
+                    if (window.confirm(`¿Eliminar "${e.nombre}"? Esto no se puede deshacer.`)) {
+                      eliminarMutation.mutate(e.id);
+                    }
+                  }}
+                  disabled={eliminarMutation.isPending}
+                  className="text-xs text-ink-muted hover:text-rock-bright underline"
+                >
+                  Eliminar
+                </button>
+              </div>
             </div>
           ))}
         </div>

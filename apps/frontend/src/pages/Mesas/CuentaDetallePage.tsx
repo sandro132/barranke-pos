@@ -51,6 +51,7 @@ export function CuentaDetallePage() {
   const [modalUnirAbierto, setModalUnirAbierto] = useState(false);
   const [metodoPago, setMetodoPago] = useState("EFECTIVO");
   const [clienteIdFiado, setClienteIdFiado] = useState("");
+  const [descuento, setDescuento] = useState("");
   const [dividiendo, setDividiendo] = useState(false);
   const [partes, setPartes] = useState<ParteDividida[]>([]);
 
@@ -82,8 +83,8 @@ export function CuentaDetallePage() {
   }
 
   const cerrarMutation = useMutation({
-    mutationFn: (vars: { metodo?: string; pagos?: PagoDividido[]; clienteId?: string }) =>
-      cerrarCuenta(id!, vars.metodo, vars.pagos, vars.clienteId),
+    mutationFn: (vars: { metodo?: string; pagos?: PagoDividido[]; clienteId?: string; descuento?: number }) =>
+      cerrarCuenta(id!, vars.metodo, vars.pagos, vars.clienteId, vars.descuento),
     onSuccess: () => {
       invalidarTodo();
       navigate("/cuentas");
@@ -122,14 +123,16 @@ export function CuentaDetallePage() {
     return <div className="p-8 text-ink-muted text-sm">Cuenta no encontrada.</div>;
   }
 
+  const totalConDescuento = Math.max(0, cuenta.totalConsumido - (Number(descuento) || 0));
+
   function activarDivision() {
-    const iguales = dividirEnPartesIguales(cuenta!.totalConsumido, 2);
+    const iguales = dividirEnPartesIguales(totalConDescuento, 2);
     setPartes(iguales.map((monto) => ({ monto: String(monto), metodoPago: "EFECTIVO", clienteId: "" })));
     setDividiendo(true);
   }
 
   function cambiarNumeroPartes(n: number) {
-    const iguales = dividirEnPartesIguales(cuenta!.totalConsumido, n);
+    const iguales = dividirEnPartesIguales(totalConDescuento, n);
     setPartes(
       iguales.map((monto, i) => ({
         monto: String(monto),
@@ -140,7 +143,7 @@ export function CuentaDetallePage() {
   }
 
   const sumaPartes = partes.reduce((s, p) => s + (Number(p.monto) || 0), 0);
-  const diferenciaPartes = cuenta.totalConsumido - sumaPartes;
+  const diferenciaPartes = totalConDescuento - sumaPartes;
 
   const faltaClienteUnico = metodoPago === "FIADO" && !clienteIdFiado;
   const faltaClienteDividido = dividiendo && partes.some((p) => p.metodoPago === "FIADO" && !p.clienteId);
@@ -153,11 +156,13 @@ export function CuentaDetallePage() {
           monto: Number(p.monto),
           clienteId: p.metodoPago === "FIADO" ? p.clienteId : undefined,
         })),
+        descuento: Number(descuento) || undefined,
       });
     } else {
       cerrarMutation.mutate({
         metodo: metodoPago,
         clienteId: metodoPago === "FIADO" ? clienteIdFiado : undefined,
+        descuento: Number(descuento) || undefined,
       });
     }
   }
@@ -245,6 +250,7 @@ export function CuentaDetallePage() {
             setDividiendo(false);
             setMetodoPago("EFECTIVO");
             setClienteIdFiado("");
+            setDescuento("");
             if (cuenta.totalConsumido === 0) {
               cerrarMutation.mutate({});
             } else {
@@ -321,9 +327,23 @@ export function CuentaDetallePage() {
       >
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
+            <span className="text-ink-muted text-sm">Consumo</span>
+            <span className="text-ink font-medium">{formatoMoneda(cuenta.totalConsumido)}</span>
+          </div>
+
+          <Input
+            type="number"
+            min={0}
+            label="Descuento (opcional, en pesos)"
+            placeholder="0"
+            value={descuento}
+            onChange={(e) => setDescuento(e.target.value)}
+          />
+
+          <div className="flex items-center justify-between border-t border-border pt-3">
             <span className="text-ink-muted text-sm">Total a cobrar</span>
             <span className="font-display text-2xl font-bold text-ink">
-              {formatoMoneda(cuenta.totalConsumido)}
+              {formatoMoneda(totalConDescuento)}
             </span>
           </div>
 

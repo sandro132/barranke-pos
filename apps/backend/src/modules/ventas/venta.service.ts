@@ -152,6 +152,115 @@ export async function cambiarMetodoPago(ventaId: string, nuevoMetodo: string, cl
 }
 
 /**
+ * Divide el pago de una venta ya cerrada en varios pagos — para cuando el
+ * mesero cobró todo con un solo método por error, pero en realidad el
+ * cliente pagó parte en efectivo y parte por Nequi (o similar).
+ *
+ * La venta original se convierte en el "pago 1" (se queda con el ticket
+ * itemizado y el vínculo a los pedidos). Los pagos 2..N se crean como
+ * ventas nuevas, iguales a como funciona dividir cuenta al cerrar.
+ */
+export async function dividirPagoVenta(
+  ventaId: string,
+  pagos: { metodoPago: string; monto: number; clienteId?: string }[]
+) {
+  const venta = await prisma.venta.findUnique({
+    where: { id: ventaId },
+    include: { movimientoCaja: true, movimientoCuenta: true },
+  });
+
+  if (!venta) {
+    throw new AppError("Venta no encontrada", 404);
+  }
+
+  if (pagos.length < 2) {
+    throw new AppError("Para dividir se necesitan al menos 2 pagos", 400);
+  }
+
+  for (const p of pagos) {
+    if (p.metodoPago === "FIADO" && !p.clienteId) {
+      throw new AppError("Selecciona un cliente para cada pago fiado", 400);
+    }
+  }
+
+  const sumaPagos = pagos.reduce((s, p) => s + p.monto, 0);
+  if (Math.abs(sumaPagos - Number(venta.total)) > 1) {
+    throw new AppError(
+      `La suma de los pagos (${sumaPagos}) no coincide con el total (${venta.total})`,
+      400
+    );
+  }
+
+  await prisma.$transaction(async (tx) => {
+    // Revierte lo que tenía la venta original antes de dividirla.
+    if (venta.movimientoCuenta) {
+      await tx.movimientoCuentaCliente.delete({ where: { id: venta.movimientoCuenta.id } });
+    }
+    if (venta.movimientoCaja) {
+      await tx.movimientoCaja.delete({ where: { id: venta.movimientoCaja.id } });
+    }
+
+    const cajaAbierta = await tx.caja.findFirst({ where: { abierta: true } });
+
+    for (let i = 0; i < pagos.length; i++) {
+      const pago = pagos[i];
+      const esFiado = pago.metodoPago === "FIADO";
+
+      // El primer pago reutiliza la venta original (se queda con el ticket
+      // itemizado y los pedidos vinculados). Los demás son ventas nuevas.
+      const ventaDelPago =
+        i === 0
+          ? await tx.venta.update({
+              where: { id: ventaId },
+              data: {
+                metodoPago: pago.metodoPago,
+                subtotal: pago.monto,
+                total: pago.monto,
+                clienteId: esFiado ? pago.clienteId : null,
+              },
+            })
+          : await tx.venta.create({
+              data: {
+                cuentaId: venta.cuentaId,
+                usuarioId: venta.usuarioId,
+                subtotal: pago.monto,
+                descuento: 0,
+                total: pago.monto,
+                metodoPago: pago.metodoPago,
+                cajaId: cajaAbierta?.id ?? null,
+                clienteId: esFiado ? pago.clienteId : null,
+              },
+            });
+
+      if (esFiado) {
+        await tx.movimientoCuentaCliente.create({
+          data: {
+            clienteId: pago.clienteId!,
+            tipo: "CARGO",
+            monto: pago.monto,
+            descripcion: `Consumo — cuenta dividida (pago ${i + 1}/${pagos.length})`,
+            ventaId: ventaDelPago.id,
+          },
+        });
+      } else if (cajaAbierta) {
+        await tx.movimientoCaja.create({
+          data: {
+            cajaId: cajaAbierta.id,
+            tipo: "VENTA",
+            monto: pago.monto,
+            descripcion: `Venta (cuenta dividida, pago ${i + 1}/${pagos.length})`,
+            usuarioId: venta.usuarioId,
+            ventaId: ventaDelPago.id,
+          },
+        });
+      }
+    }
+  });
+
+  return obtenerTicket(ventaId);
+}
+
+/**
  * Lista TODAS las ventas, tengan o no una caja asociada (una venta puede
  * quedar sin caja si se cerró una mesa sin haber abierto caja ese día).
  * Es la única forma de encontrar esas ventas "sueltas" — desde una caja

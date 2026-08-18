@@ -45,3 +45,13 @@ export function cambiarMetodoPago(ventaId: string, metodoPago: string, clienteId
     body: { metodoPago, clienteId },
   });
 }
+
+export function dividirPagoVenta(
+  ventaId: string,
+  pagos: { metodoPago: string; monto: number; clienteId?: string }[]
+) {
+  return apiRequest<TicketDTO>(`/ventas/${ventaId}/dividir`, {
+    method: "POST",
+    body: { pagos },
+  });
+}

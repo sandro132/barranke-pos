@@ -22,6 +22,8 @@ import { HistorialCajaPage } from "./pages/Caja/HistorialCajaPage";
 import { DetalleCajaHistorialPage } from "./pages/Caja/DetalleCajaHistorialPage";
 import { AppLayout } from "./layouts/AppLayout";
 import { RequireAuth } from "./components/RequireAuth";
+import { RequireRole } from "./components/RequireRole";
+import { UsuariosPage } from "./pages/Usuarios/UsuariosPage";
 
 export function App() {
   return (
@@ -35,24 +37,116 @@ export function App() {
           <Route path="/cuentas/:id/precuenta" element={<PrecuentaPage />} />
 
           <Route element={<AppLayout />}>
-            <Route path="/" element={<DashboardPage />} />
-            <Route path="/cuentas" element={<CuentasPage />} />
-            <Route path="/cuentas/:id" element={<CuentaDetallePage />} />
-            <Route path="/cuentas/:id/pedido" element={<NuevoPedidoPage />} />
-            <Route path="/cocina" element={<CocinaPage />} />
-            <Route path="/barra" element={<BarraPage />} />
-            <Route path="/caja" element={<CajaPage />} />
-            <Route path="/ventas" element={<VentasPage />} />
-            <Route path="/caja/historial" element={<HistorialCajaPage />} />
-            <Route path="/caja/historial/:id" element={<DetalleCajaHistorialPage />} />
-            <Route path="/compras" element={<ComprasPage />} />
-            <Route path="/consumo-interno" element={<ConsumoInternoPage />} />
-            <Route path="/compras/nueva" element={<NuevaCompraPage />} />
-            <Route path="/productos" element={<ProductosPage />} />
-            <Route path="/ingredientes" element={<IngredientesPage />} />
-            <Route path="/reportes" element={<ReportesPage />} />
-            <Route path="/promociones" element={<PromocionesPage />} />
-            <Route path="/clientes" element={<ClientesPage />} />
+            <Route path="/" element={<RequireRole roles={[]}><DashboardPage /></RequireRole>} />
+            <Route
+              path="/cuentas"
+              element={
+                <RequireRole roles={["MESERO"]}>
+                  <CuentasPage />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="/cuentas/:id"
+              element={
+                <RequireRole roles={["MESERO"]}>
+                  <CuentaDetallePage />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="/cuentas/:id/pedido"
+              element={
+                <RequireRole roles={["MESERO"]}>
+                  <NuevoPedidoPage />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="/cocina"
+              element={
+                <RequireRole roles={["COCINA"]}>
+                  <CocinaPage />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="/barra"
+              element={
+                <RequireRole roles={["BAR"]}>
+                  <BarraPage />
+                </RequireRole>
+              }
+            />
+            <Route path="/caja" element={<RequireRole roles={[]}><CajaPage /></RequireRole>} />
+            <Route path="/ventas" element={<RequireRole roles={[]}><VentasPage /></RequireRole>} />
+            <Route
+              path="/caja/historial"
+              element={
+                <RequireRole roles={[]}>
+                  <HistorialCajaPage />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="/caja/historial/:id"
+              element={
+                <RequireRole roles={[]}>
+                  <DetalleCajaHistorialPage />
+                </RequireRole>
+              }
+            />
+            <Route path="/compras" element={<RequireRole roles={[]}><ComprasPage /></RequireRole>} />
+            <Route
+              path="/consumo-interno"
+              element={
+                <RequireRole roles={["MESERO", "COCINA", "BAR"]}>
+                  <ConsumoInternoPage />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="/compras/nueva"
+              element={
+                <RequireRole roles={[]}>
+                  <NuevaCompraPage />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="/productos"
+              element={
+                <RequireRole roles={[]}>
+                  <ProductosPage />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="/ingredientes"
+              element={
+                <RequireRole roles={[]}>
+                  <IngredientesPage />
+                </RequireRole>
+              }
+            />
+            <Route path="/reportes" element={<RequireRole roles={[]}><ReportesPage /></RequireRole>} />
+            <Route
+              path="/promociones"
+              element={
+                <RequireRole roles={[]}>
+                  <PromocionesPage />
+                </RequireRole>
+              }
+            />
+            <Route
+              path="/clientes"
+              element={
+                <RequireRole roles={["MESERO"]}>
+                  <ClientesPage />
+                </RequireRole>
+              }
+            />
+            <Route path="/usuarios" element={<RequireRole roles={[]}><UsuariosPage /></RequireRole>} />
           </Route>
         </Route>
       </Routes>

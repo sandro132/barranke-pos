@@ -26,3 +26,7 @@ export function actualizarEspacio(id: string, nombre: string, capacidad?: number
     body: { nombre, capacidad },
   });
 }
+
+export function eliminarEspacio(id: string) {
+  return apiRequest(`/espacios/${id}`, { method: "DELETE" });
+}

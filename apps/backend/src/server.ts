@@ -22,6 +22,7 @@ import clienteRoutes from "./modules/clientes/cliente.routes";
 import categoriaRoutes from "./modules/categorias/categoria.routes";
 import consumoInternoRoutes from "./modules/consumo-interno/consumo-interno.routes";
 import proveedorRoutes from "./modules/proveedores/proveedor.routes";
+import usuarioRoutes from "./modules/usuarios/usuario.routes";
 
 const app = express();
 
@@ -51,6 +52,7 @@ app.use("/api/clientes", clienteRoutes);
 app.use("/api/categorias", categoriaRoutes);
 app.use("/api/consumo-interno", consumoInternoRoutes);
 app.use("/api/proveedores", proveedorRoutes);
+app.use("/api/usuarios", usuarioRoutes);
 
 /**
  * Sirve el frontend ya compilado (resultado de `npm run build` en

@@ -55,11 +55,12 @@ export function cerrarCuenta(
   id: string,
   metodoPago?: string,
   pagos?: PagoDividido[],
-  clienteId?: string
+  clienteId?: string,
+  descuento?: number
 ) {
   return apiRequest<{ cuenta: CuentaDTO; venta: { id: string; total: number } | null }>(
     `/cuentas/${id}/cerrar`,
-    { method: "POST", body: { metodoPago, pagos, clienteId } }
+    { method: "POST", body: { metodoPago, pagos, clienteId, descuento } }
   );
 }
 

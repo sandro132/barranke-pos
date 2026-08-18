@@ -1,10 +1,10 @@
 import { Router } from "express";
-import { requireAuth } from "../../middlewares/auth";
+import { requireAuth, requireRole } from "../../middlewares/auth";
 import * as reporteController from "./reporte.controller";
 
 const router = Router();
 
-router.use(requireAuth);
+router.use(requireAuth, requireRole("ADMIN"));
 
 router.get("/ventas", reporteController.ventasHandler);
 router.get("/productos", reporteController.productosHandler);

@@ -5,6 +5,7 @@ import { Input } from "../../components/ui/Input";
 import { useAuthStore } from "../../stores/authStore";
 import { login } from "../../services/authService";
 import { ApiError } from "../../services/api";
+import { rutaInicioSegunRol } from "../../utils/roles";
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -23,7 +24,7 @@ export function LoginPage() {
     try {
       const resultado = await login({ email, password });
       setSesion(resultado.token, resultado.usuario);
-      navigate("/", { replace: true });
+      navigate(rutaInicioSegunRol(resultado.usuario.rol), { replace: true });
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message);
