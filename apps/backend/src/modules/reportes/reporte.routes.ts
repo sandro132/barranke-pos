@@ -15,5 +15,6 @@ router.get("/inventario", reporteController.inventarioHandler);
 router.get("/consumo-interno", reporteController.consumoInternoHandler);
 router.get("/compras", reporteController.comprasHandler);
 router.get("/excel", reporteController.excelHandler);
+router.get("/inventario/excel", reporteController.excelInventarioHandler);
 
 export default router;

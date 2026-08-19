@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { asyncHandler } from "../../middlewares/errorHandler";
 import * as reporteService from "./reporte.service";
 import { generarExcelReportes } from "./reporte.excel";
+import { generarExcelInventarioActual } from "./reporte.excel.inventario";
 
 function rango(req: Request) {
   const { desde, hasta } = req.query;
@@ -61,6 +62,19 @@ export const excelHandler = asyncHandler(async (req: Request, res: Response) => 
   const buffer = await generarExcelReportes(desde, hasta);
 
   const nombreArchivo = `reporte-barranke-${desde ?? "mes-actual"}-a-${hasta ?? "hoy"}.xlsx`;
+
+  res.setHeader(
+    "Content-Type",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+  );
+  res.setHeader("Content-Disposition", `attachment; filename="${nombreArchivo}"`);
+  res.send(buffer);
+});
+
+export const excelInventarioHandler = asyncHandler(async (_req: Request, res: Response) => {
+  const buffer = await generarExcelInventarioActual();
+
+  const nombreArchivo = `inventario-barranke-${new Date().toISOString().slice(0, 10)}.xlsx`;
 
   res.setHeader(
     "Content-Type",

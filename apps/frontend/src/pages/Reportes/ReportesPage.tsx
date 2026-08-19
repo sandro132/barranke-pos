@@ -14,6 +14,7 @@ import { Button } from "../../components/ui/Button";
 import { formatoMoneda } from "../../utils/format";
 import {
   descargarExcelReportes,
+  descargarExcelInventario,
   obtenerCategoriasReporte,
   obtenerComprasReporte,
   obtenerConsumoInternoReporte,
@@ -87,6 +88,8 @@ export function ReportesPage() {
   const [preset, setPreset] = useState<Preset>("mes");
   const [exportando, setExportando] = useState(false);
   const [errorExportar, setErrorExportar] = useState<string | null>(null);
+  const [exportandoInventario, setExportandoInventario] = useState(false);
+  const [errorExportarInventario, setErrorExportarInventario] = useState<string | null>(null);
   const { desde, hasta, agrupacion } = useMemo(() => calcularRango(preset), [preset]);
 
   const ventasQuery = useQuery({
@@ -337,9 +340,31 @@ export function ReportesPage() {
 
       {/* Inventario */}
       <Card>
-        <h2 className="font-display uppercase text-sm font-semibold tracking-wide text-ink-muted mb-4">
-          Inventario
-        </h2>
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+          <h2 className="font-display uppercase text-sm font-semibold tracking-wide text-ink-muted">
+            Inventario
+          </h2>
+          <Button
+            variant="secondary"
+            disabled={exportandoInventario}
+            onClick={async () => {
+              setExportandoInventario(true);
+              setErrorExportarInventario(null);
+              try {
+                await descargarExcelInventario();
+              } catch {
+                setErrorExportarInventario("No se pudo generar el Excel. Intenta de nuevo.");
+              } finally {
+                setExportandoInventario(false);
+              }
+            }}
+          >
+            {exportandoInventario ? "Generando..." : "⬇ Exportar inventario actual"}
+          </Button>
+        </div>
+        {errorExportarInventario && (
+          <p className="text-sm text-rock-bright mb-3">{errorExportarInventario}</p>
+        )}
         {inventarioQuery.isLoading ? (
           <p className="text-sm text-ink-muted">Cargando...</p>
         ) : (

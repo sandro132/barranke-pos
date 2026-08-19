@@ -149,3 +149,31 @@ export async function descargarExcelReportes(desde?: string, hasta?: string) {
   enlace.remove();
   window.URL.revokeObjectURL(url);
 }
+
+/** Igual que descargarExcelReportes, pero para el inventario actual (sin rango de fechas). */
+export async function descargarExcelInventario() {
+  const API_URL = import.meta.env.VITE_API_URL || "/api";
+  const token = localStorage.getItem("barranke_token");
+
+  const respuesta = await fetch(`${API_URL}/reportes/inventario/excel`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+
+  if (!respuesta.ok) {
+    throw new Error("No se pudo generar el Excel");
+  }
+
+  const blob = await respuesta.blob();
+  const nombreArchivo =
+    respuesta.headers.get("Content-Disposition")?.match(/filename="(.+)"/)?.[1] ??
+    "inventario-barranke.xlsx";
+
+  const url = window.URL.createObjectURL(blob);
+  const enlace = document.createElement("a");
+  enlace.href = url;
+  enlace.download = nombreArchivo;
+  document.body.appendChild(enlace);
+  enlace.click();
+  enlace.remove();
+  window.URL.revokeObjectURL(url);
+}
