@@ -14,6 +14,7 @@ import {
 } from "../../services/cuentaService";
 import { cancelarItem, listarPorCuenta, repetirUltimaRonda } from "../../services/pedidoService";
 import { listarClientes } from "../../services/clienteService";
+import { esErrorDeRed } from "../../services/api";
 import { formatoMoneda } from "../../utils/format";
 import { UnirCuentasModal } from "./UnirCuentasModal";
 
@@ -85,6 +86,11 @@ export function CuentaDetallePage() {
   const cerrarMutation = useMutation({
     mutationFn: (vars: { metodo?: string; pagos?: PagoDividido[]; clienteId?: string; descuento?: number }) =>
       cerrarCuenta(id!, vars.metodo, vars.pagos, vars.clienteId, vars.descuento),
+    // Igual que al enviar un pedido: si falla por conexión, reintenta solo
+    // antes de rendirse — cerrar y cobrar una cuenta es aún más importante
+    // no perderlo por un corte breve de wifi.
+    retry: (intentosFallidos, error) => intentosFallidos < 4 && esErrorDeRed(error),
+    retryDelay: (intentoActual) => Math.min(1000 * 2 ** intentoActual, 8000),
     onSuccess: () => {
       invalidarTodo();
       navigate("/cuentas");
@@ -474,7 +480,11 @@ export function CuentaDetallePage() {
           )}
 
           {cerrarMutation.isError && (
-            <p className="text-sm text-rock-bright">No se pudo cerrar la cuenta. Intenta de nuevo.</p>
+            <p className="text-sm text-rock-bright">
+              {esErrorDeRed(cerrarMutation.error)
+                ? "No se pudo cerrar por un problema de conexión. El cobro no se hizo — presiona 'Confirmar cierre' de nuevo cuando tengas señal."
+                : "No se pudo cerrar la cuenta. Intenta de nuevo."}
+            </p>
           )}
 
           <Button
@@ -486,7 +496,11 @@ export function CuentaDetallePage() {
             }
             onClick={confirmarCierre}
           >
-            {cerrarMutation.isPending ? "Cerrando..." : "Confirmar cierre"}
+            {cerrarMutation.isPending
+              ? cerrarMutation.failureCount > 0
+                ? `Reintentando conexión... (${cerrarMutation.failureCount}/4)`
+                : "Cerrando..."
+              : "Confirmar cierre"}
           </Button>
         </div>
       </Modal>

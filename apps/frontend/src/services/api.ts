@@ -19,6 +19,22 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * true si el error es un fallo de RED (wifi cortado, sin señal, timeout) —
+ * en ese caso sí tiene sentido reintentar solo. Si el servidor respondió
+ * pero rechazó la solicitud (ej. "sin stock", "no autorizado"), reintentar
+ * no va a arreglar nada — hay que dejar que el usuario lo vea y corrija.
+ */
+export function esErrorDeRed(error: unknown): boolean {
+  if (error instanceof ApiError) {
+    // Un 5xx es un problema del servidor, no de la conexión del usuario,
+    // pero puede ser transitorio (ej. se está reiniciando) — vale la pena reintentar.
+    return error.status >= 500;
+  }
+  // fetch() lanza un TypeError plano cuando no hay conexión en absoluto.
+  return true;
+}
+
 interface RequestOptions {
   method?: "GET" | "POST" | "PATCH" | "DELETE";
   body?: unknown;

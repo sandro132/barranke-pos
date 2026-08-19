@@ -7,7 +7,7 @@ import { obtenerCuenta } from "../../services/cuentaService";
 import { crearPedido } from "../../services/pedidoService";
 import { listarProductos, ProductoDTO } from "../../services/productoService";
 import { listarPromociones } from "../../services/promocionService";
-import { ApiError } from "../../services/api";
+import { ApiError, esErrorDeRed } from "../../services/api";
 import { formatoMoneda } from "../../utils/format";
 
 interface ItemCarrito {
@@ -168,6 +168,13 @@ export function NuevoPedidoPage() {
         id!,
         items.map((i) => ({ productoId: i.producto.id, cantidad: i.cantidad }))
       ),
+    // Si falla por conexión (wifi cortado, timeout), reintenta solo hasta 4
+    // veces con espera creciente (1s, 2s, 4s, 8s) antes de rendirse — así un
+    // corte breve de wifi no hace que el pedido simplemente desaparezca.
+    // Si el servidor respondió con un error real (ej. "sin stock"), NO
+    // reintenta: no serviría de nada y solo demoraría el aviso al mesero.
+    retry: (intentosFallidos, error) => intentosFallidos < 4 && esErrorDeRed(error),
+    retryDelay: (intentoActual) => Math.min(1000 * 2 ** intentoActual, 8000),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["pedidos", "cuenta", id] });
       queryClient.invalidateQueries({ queryKey: ["cuenta", id] });
@@ -175,7 +182,16 @@ export function NuevoPedidoPage() {
       navigate(`/cuentas/${id}`);
     },
     onError: (err) => {
-      setError(err instanceof ApiError ? err.message : "No se pudo enviar el pedido");
+      // El carrito NUNCA se borra en un error — así, si falló por conexión,
+      // el mesero solo tiene que presionar "Reintentar", sin volver a armar
+      // el pedido desde cero.
+      setError(
+        esErrorDeRed(err)
+          ? "No se pudo enviar por un problema de conexión. Revisa el wifi e intenta de nuevo — el pedido sigue aquí, no se perdió."
+          : err instanceof ApiError
+            ? err.message
+            : "No se pudo enviar el pedido"
+      );
     },
   });
 
@@ -281,7 +297,13 @@ export function NuevoPedidoPage() {
               enviarMutation.mutate();
             }}
           >
-            {enviarMutation.isPending ? "Enviando..." : "Enviar pedido"}
+            {enviarMutation.isPending
+              ? enviarMutation.failureCount > 0
+                ? `Reintentando conexión... (${enviarMutation.failureCount}/4)`
+                : "Enviando..."
+              : error
+                ? "Reintentar"
+                : "Enviar pedido"}
           </Button>
         </div>
       </div>
