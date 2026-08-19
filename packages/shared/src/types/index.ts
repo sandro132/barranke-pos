@@ -117,6 +117,13 @@ export interface LoginResponseDTO {
 
 // ---- Eventos de Socket.IO (mismos nombres en backend y frontend) ----
 
+export enum TipoGasto {
+  ARRIENDO = "ARRIENDO",
+  SERVICIOS = "SERVICIOS",
+  NOMINA = "NOMINA",
+  OTRO = "OTRO",
+}
+
 export const SOCKET_EVENTS = {
   PEDIDO_NUEVO: "pedido:nuevo",
   PEDIDO_ITEM_ACTUALIZADO: "pedido:item-actualizado",

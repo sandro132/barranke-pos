@@ -18,6 +18,7 @@ const NAV_ITEMS = [
   { to: "/caja", label: "Caja", roles: [] as string[] },
   { to: "/ventas", label: "Ventas", roles: [] as string[] },
   { to: "/compras", label: "Compras", roles: [] as string[] },
+  { to: "/gastos", label: "Gastos", roles: [] as string[] },
   { to: "/reportes", label: "Reportes", roles: [] as string[] },
   { to: "/promociones", label: "Promociones", roles: [] as string[] },
   { to: "/usuarios", label: "Usuarios", roles: [] as string[] },

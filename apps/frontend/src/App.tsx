@@ -24,6 +24,7 @@ import { AppLayout } from "./layouts/AppLayout";
 import { RequireAuth } from "./components/RequireAuth";
 import { RequireRole } from "./components/RequireRole";
 import { UsuariosPage } from "./pages/Usuarios/UsuariosPage";
+import { GastosPage } from "./pages/Gastos/GastosPage";
 
 export function App() {
   return (
@@ -97,6 +98,7 @@ export function App() {
               }
             />
             <Route path="/compras" element={<RequireRole roles={[]}><ComprasPage /></RequireRole>} />
+            <Route path="/gastos" element={<RequireRole roles={[]}><GastosPage /></RequireRole>} />
             <Route
               path="/consumo-interno"
               element={

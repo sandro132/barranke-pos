@@ -31,6 +31,7 @@ model Usuario {
   ventas                Venta[]
   movimientosInventario MovimientoInventario[]
   cuentas               Cuenta[]
+  gastos                Gasto[]
 }
 
 // =========================
@@ -401,4 +402,26 @@ model MovimientoCuentaCliente {
   // a esa venta (para trazabilidad). Los abonos no tienen venta asociada.
   ventaId String? @unique
   venta   Venta?  @relation(fields: [ventaId], references: [id])
+}
+
+// =========================
+// GASTOS OPERATIVOS
+// =========================
+
+// Distinto de MovimientoCaja tipo GASTO (que son salidas pequeñas de
+// efectivo durante un turno, ej. "compré hielo"): esto es para los gastos
+// fijos/grandes del negocio — arriendo, servicios, nómina — que antes no
+// se registraban en ningún lado y por eso el reporte de "Ganancia" no
+// reflejaba la ganancia real del negocio, solo el margen sobre productos.
+model Gasto {
+  id     String @id @default(cuid())
+  concepto String
+  /// Valores válidos: ARRIENDO | SERVICIOS | NOMINA | OTRO
+  categoria String
+  monto     Decimal
+  fecha     DateTime @default(now())
+  notas     String?
+
+  usuarioId String?
+  usuario   Usuario? @relation(fields: [usuarioId], references: [id])
 }

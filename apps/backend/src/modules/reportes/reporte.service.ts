@@ -1,5 +1,6 @@
 import { prisma } from "../../lib/prisma";
 import { EstadoPedido, TipoMovimientoInventario } from "@barranke/shared";
+import { sumaGastosEnRango } from "../gastos/gasto.service";
 
 /**
  * Todos los reportes reciben un rango de fechas opcional (desde/hasta, formato
@@ -121,17 +122,38 @@ export async function reporteGanancias(desde?: string, hasta?: string) {
   const items = await obtenerItemsVendidos(desdeDate, hastaDate);
 
   let ingresos = 0;
-  let costos = 0;
+  let costoProductos = 0;
 
   for (const item of items) {
     ingresos += Number(item.precioUnitario) * item.cantidad;
-    costos += Number(item.producto.costo) * item.cantidad;
+    costoProductos += Number(item.producto.costo) * item.cantidad;
   }
 
-  const ganancia = ingresos - costos;
-  const margen = ingresos > 0 ? (ganancia / ingresos) * 100 : 0;
+  const gananciaBruta = ingresos - costoProductos;
+  const margenBruto = ingresos > 0 ? (gananciaBruta / ingresos) * 100 : 0;
 
-  return { ingresos, costos, ganancia, margen };
+  // Ganancia neta: la ganancia bruta menos los gastos operativos del
+  // negocio (arriendo, servicios, nómina) — antes el reporte solo mostraba
+  // la bruta, que sin estos gastos puede confundirse con "lo que de verdad
+  // queda", cuando en realidad es solo el margen sobre los productos.
+  const gastos = await sumaGastosEnRango(desdeDate, hastaDate);
+  const gananciaNeta = gananciaBruta - gastos.total;
+  const margenNeto = ingresos > 0 ? (gananciaNeta / ingresos) * 100 : 0;
+
+  return {
+    ingresos,
+    costos: costoProductos,
+    gananciaBruta,
+    margenBruto,
+    gastosOperativos: gastos.total,
+    gastosPorCategoria: gastos.porCategoria,
+    gananciaNeta,
+    margenNeto,
+    // Se conservan por compatibilidad con quien ya use estos nombres
+    // (ej. el Excel): equivalen a la ganancia/margen bruto.
+    ganancia: gananciaBruta,
+    margen: margenBruto,
+  };
 }
 
 export async function reporteMetodosPago(desde?: string, hasta?: string) {

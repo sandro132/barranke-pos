@@ -10,8 +10,10 @@ import {
   YAxis,
 } from "recharts";
 import { Card } from "../../components/ui/Card";
+import { Button } from "../../components/ui/Button";
 import { formatoMoneda } from "../../utils/format";
 import {
+  descargarExcelReportes,
   obtenerCategoriasReporte,
   obtenerComprasReporte,
   obtenerConsumoInternoReporte,
@@ -83,6 +85,8 @@ function BarraProporcional({ etiqueta, valor, max, formato }: { etiqueta: string
 
 export function ReportesPage() {
   const [preset, setPreset] = useState<Preset>("mes");
+  const [exportando, setExportando] = useState(false);
+  const [errorExportar, setErrorExportar] = useState<string | null>(null);
   const { desde, hasta, agrupacion } = useMemo(() => calcularRango(preset), [preset]);
 
   const ventasQuery = useQuery({
@@ -135,7 +139,7 @@ export function ReportesPage() {
             {new Date(`${hasta}T00:00:00`).toLocaleDateString("es-CO", { dateStyle: "medium" })}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap items-center">
           {(["hoy", "semana", "mes", "anio"] as Preset[]).map((p) => (
             <button
               key={p}
@@ -147,11 +151,32 @@ export function ReportesPage() {
               {{ hoy: "Hoy", semana: "7 días", mes: "Este mes", anio: "Este año" }[p]}
             </button>
           ))}
+          <Button
+            variant="secondary"
+            disabled={exportando}
+            onClick={async () => {
+              setExportando(true);
+              setErrorExportar(null);
+              try {
+                await descargarExcelReportes(desde, hasta);
+              } catch {
+                setErrorExportar("No se pudo generar el Excel. Intenta de nuevo.");
+              } finally {
+                setExportando(false);
+              }
+            }}
+          >
+            {exportando ? "Generando..." : "⬇ Exportar a Excel"}
+          </Button>
         </div>
       </header>
 
+      {errorExportar && (
+        <p className="text-sm text-rock-bright mb-4">{errorExportar}</p>
+      )}
+
       {/* Ganancias */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-3">
         <Card>
           <p className="text-sm text-ink-muted">Ingresos</p>
           <p className="font-display text-2xl font-bold text-ink mt-1">
@@ -159,22 +184,53 @@ export function ReportesPage() {
           </p>
         </Card>
         <Card>
-          <p className="text-sm text-ink-muted">Costos</p>
+          <p className="text-sm text-ink-muted">Costo de productos</p>
           <p className="font-display text-2xl font-bold text-ink mt-1">
             {gananciasQuery.isLoading ? "—" : formatoMoneda(gananciasQuery.data?.costos ?? 0)}
           </p>
         </Card>
         <Card>
-          <p className="text-sm text-ink-muted">Ganancia</p>
+          <p className="text-sm text-ink-muted">Ganancia bruta</p>
           <p className="font-display text-2xl font-bold text-ink mt-1">
-            {gananciasQuery.isLoading ? "—" : formatoMoneda(gananciasQuery.data?.ganancia ?? 0)}
+            {gananciasQuery.isLoading ? "—" : formatoMoneda(gananciasQuery.data?.gananciaBruta ?? 0)}
+          </p>
+          <p className="text-xs text-ink-muted mt-0.5">
+            {gananciasQuery.isLoading ? "" : `${(gananciasQuery.data?.margenBruto ?? 0).toFixed(1)}% margen`}
           </p>
         </Card>
         <Card>
-          <p className="text-sm text-ink-muted">Margen</p>
+          <p className="text-sm text-ink-muted">Gastos operativos</p>
           <p className="font-display text-2xl font-bold text-ink mt-1">
-            {gananciasQuery.isLoading ? "—" : `${(gananciasQuery.data?.margen ?? 0).toFixed(1)}%`}
+            {gananciasQuery.isLoading ? "—" : formatoMoneda(gananciasQuery.data?.gastosOperativos ?? 0)}
           </p>
+          <p className="text-xs text-ink-muted mt-0.5">Arriendo, servicios, nómina...</p>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+        <Card className="border-rock">
+          <p className="text-sm text-ink-muted">Ganancia neta (lo que de verdad queda)</p>
+          <p className="font-display text-3xl font-bold text-ink mt-1">
+            {gananciasQuery.isLoading ? "—" : formatoMoneda(gananciasQuery.data?.gananciaNeta ?? 0)}
+          </p>
+          <p className="text-xs text-ink-muted mt-0.5">
+            {gananciasQuery.isLoading ? "" : `${(gananciasQuery.data?.margenNeto ?? 0).toFixed(1)}% margen neto`}
+          </p>
+        </Card>
+        <Card>
+          <p className="text-sm text-ink-muted mb-2">Gastos por categoría</p>
+          {gananciasQuery.data?.gastosPorCategoria.length === 0 ? (
+            <p className="text-xs text-ink-muted">Sin gastos registrados en este rango.</p>
+          ) : (
+            <ul className="flex flex-col gap-1">
+              {gananciasQuery.data?.gastosPorCategoria.map((g) => (
+                <li key={g.categoria} className="text-sm flex justify-between">
+                  <span className="text-ink-muted">{g.categoria}</span>
+                  <span className="text-ink">{formatoMoneda(g.monto)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </Card>
       </div>
 

@@ -21,6 +21,13 @@ export interface ProductosReporteDTO {
 export interface GananciasDTO {
   ingresos: number;
   costos: number;
+  gananciaBruta: number;
+  margenBruto: number;
+  gastosOperativos: number;
+  gastosPorCategoria: { categoria: string; monto: number }[];
+  gananciaNeta: number;
+  margenNeto: number;
+  // Compatibilidad: equivalen a gananciaBruta/margenBruto
   ganancia: number;
   margen: number;
 }
@@ -109,4 +116,36 @@ export function obtenerConsumoInternoReporte(desde?: string, hasta?: string) {
 
 export function obtenerComprasReporte(desde?: string, hasta?: string) {
   return apiRequest<ComprasReporteDTO>(`/reportes/compras${query(desde, hasta)}`);
+}
+
+/**
+ * Descarga el Excel completo de reportes. No usa apiRequest (que asume
+ * JSON) — hace el fetch directo con el token, arma un archivo a partir de
+ * la respuesta binaria, y dispara la descarga en el navegador.
+ */
+export async function descargarExcelReportes(desde?: string, hasta?: string) {
+  const API_URL = import.meta.env.VITE_API_URL || "/api";
+  const token = localStorage.getItem("barranke_token");
+
+  const respuesta = await fetch(`${API_URL}/reportes/excel${query(desde, hasta)}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+
+  if (!respuesta.ok) {
+    throw new Error("No se pudo generar el Excel");
+  }
+
+  const blob = await respuesta.blob();
+  const nombreArchivo =
+    respuesta.headers.get("Content-Disposition")?.match(/filename="(.+)"/)?.[1] ??
+    "reporte-barranke.xlsx";
+
+  const url = window.URL.createObjectURL(blob);
+  const enlace = document.createElement("a");
+  enlace.href = url;
+  enlace.download = nombreArchivo;
+  document.body.appendChild(enlace);
+  enlace.click();
+  enlace.remove();
+  window.URL.revokeObjectURL(url);
 }
