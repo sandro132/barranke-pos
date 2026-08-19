@@ -3,14 +3,12 @@ generator client {
 }
 
 datasource db {
-  // SQLite en desarrollo. En producción, cambiar a "postgresql" y actualizar DATABASE_URL.
-  // NOTA IMPORTANTE: SQLite no soporta enums nativos de Prisma, por eso los campos
-  // de tipo "enum" de negocio se guardan como String aquí. La validez de esos valores
-  // se garantiza con los enums de TypeScript en packages/shared y los schemas de Zod
-  // en cada módulo del backend (nunca se guarda un valor arbitrario).
-  // Si en el futuro se migra a PostgreSQL, estos campos String pueden convertirse
-  // a enums nativos de Prisma sin cambiar la lógica de negocio.
-  provider = "sqlite"
+  // Migrado de SQLite a PostgreSQL para el despliegue en la nube (Railway).
+  // Los campos de tipo "enum" de negocio se mantienen como String (no se
+  // convirtieron a enums nativos de Postgres) para minimizar el riesgo de
+  // este cambio — su validez la siguen garantizando los enums de TypeScript
+  // en packages/shared y los schemas de Zod en cada módulo del backend.
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 

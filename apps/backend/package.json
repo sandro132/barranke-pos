@@ -9,10 +9,13 @@
     "start": "tsx src/server.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
+    "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "backup": "node scripts/backup-db.js",
     "reset:prueba": "tsx scripts/reset-datos-prueba.ts",
-    "migrar:cuentas": "tsx scripts/migrar-a-cuentas.ts"
+    "migrar:cuentas": "tsx scripts/migrar-a-cuentas.ts",
+    "migrar:exportar": "tsx scripts/exportar-datos.ts",
+    "migrar:importar": "tsx scripts/importar-datos.ts"
   },
   "dependencies": {
     "@barranke/shared": "*",

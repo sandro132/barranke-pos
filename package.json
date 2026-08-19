@@ -13,6 +13,8 @@
     "build:frontend": "npm run build --workspace=apps/frontend",
     "prisma:generate": "npm run prisma:generate --workspace=apps/backend",
     "prisma:migrate": "npm run prisma:migrate --workspace=apps/backend",
-    "prisma:seed": "npm run prisma:seed --workspace=apps/backend"
+    "prisma:seed": "npm run prisma:seed --workspace=apps/backend",
+    "build": "npm run prisma:generate --workspace=apps/backend && npm run build:frontend",
+    "start": "npm run prisma:migrate:deploy --workspace=apps/backend && npm run start --workspace=apps/backend"
   }
 }
