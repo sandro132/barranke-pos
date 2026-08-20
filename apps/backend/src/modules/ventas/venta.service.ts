@@ -1,6 +1,7 @@
 import { prisma } from "../../lib/prisma";
 import { AppError } from "../../middlewares/errorHandler";
-import { EstadoPedido } from "@barranke/shared";
+import { EstadoCuenta, EstadoPedido } from "@barranke/shared";
+import { revertirDescuentoVenta } from "../inventario/inventario.service";
 
 interface LineaTicket {
   nombre: string;
@@ -305,7 +306,11 @@ export async function listarVentas(desde?: string, hasta?: string) {
 export async function anularVenta(ventaId: string) {
   const venta = await prisma.venta.findUnique({
     where: { id: ventaId },
-    include: { movimientoCaja: true, movimientoCuenta: true },
+    include: {
+      movimientoCaja: true,
+      movimientoCuenta: true,
+      pedidos: { include: { items: true } },
+    },
   });
 
   if (!venta) {
@@ -313,6 +318,21 @@ export async function anularVenta(ventaId: string) {
   }
 
   await prisma.$transaction(async (tx) => {
+    // Le devuelve al inventario lo que estos pedidos habían descontado —
+    // antes esto nunca pasaba: anular una venta borraba el cobro, pero el
+    // stock se quedaba como si el producto siguiera vendido.
+    for (const pedido of venta.pedidos) {
+      for (const item of pedido.items) {
+        if (item.estado === EstadoPedido.CANCELADO) continue; // ya se había devuelto antes
+        await revertirDescuentoVenta(
+          tx,
+          item.productoId,
+          item.cantidad,
+          `Anulación de venta — ${item.productoId}`
+        );
+      }
+    }
+
     await tx.pedido.updateMany({
       where: { ventaId },
       data: { ventaId: null },
@@ -325,6 +345,15 @@ export async function anularVenta(ventaId: string) {
     if (venta.movimientoCaja) {
       await tx.movimientoCaja.delete({ where: { id: venta.movimientoCaja.id } });
     }
+
+    // Reabre todas las cuentas involucradas (si venían unidas, pueden ser
+    // varias) — los pedidos siguen ahí, con su inventario ya devuelto,
+    // listos para corregir y volver a cerrar bien.
+    const cuentaIds = [...new Set(venta.pedidos.map((p) => p.cuentaId))];
+    await tx.cuenta.updateMany({
+      where: { id: { in: cuentaIds } },
+      data: { estado: EstadoCuenta.ABIERTA },
+    });
 
     await tx.venta.delete({ where: { id: ventaId } });
   });
