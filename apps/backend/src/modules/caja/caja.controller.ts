@@ -1,7 +1,12 @@
 import { Request, Response } from "express";
 import { asyncHandler, AppError } from "../../middlewares/errorHandler";
 import * as cajaService from "./caja.service";
-import { abrirCajaSchema, cerrarCajaSchema, registrarMovimientoSchema } from "./caja.schema";
+import {
+  abrirCajaSchema,
+  actualizarMovimientoSchema,
+  cerrarCajaSchema,
+  registrarMovimientoSchema,
+} from "./caja.schema";
 
 export const obtenerActualHandler = asyncHandler(async (_req: Request, res: Response) => {
   const resumen = await cajaService.obtenerResumenCajaAbierta();
@@ -20,6 +25,17 @@ export const registrarMovimientoHandler = asyncHandler(async (req: Request, res:
   const data = registrarMovimientoSchema.parse(req.body);
   const movimiento = await cajaService.registrarMovimiento(req.user.userId, data);
   res.status(201).json(movimiento);
+});
+
+export const actualizarMovimientoHandler = asyncHandler(async (req: Request, res: Response) => {
+  const data = actualizarMovimientoSchema.parse(req.body);
+  const movimiento = await cajaService.actualizarMovimiento(req.params.id, data);
+  res.json(movimiento);
+});
+
+export const eliminarMovimientoHandler = asyncHandler(async (req: Request, res: Response) => {
+  await cajaService.eliminarMovimiento(req.params.id);
+  res.status(204).send();
 });
 
 export const cerrarHandler = asyncHandler(async (req: Request, res: Response) => {

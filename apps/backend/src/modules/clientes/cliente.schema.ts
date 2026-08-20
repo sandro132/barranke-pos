@@ -9,8 +9,16 @@ export const crearClienteSchema = z.object({
 
 export const actualizarClienteSchema = crearClienteSchema.partial();
 
+import { MetodoPago } from "@barranke/shared";
+
+const METODOS_ABONO = Object.values(MetodoPago).filter((m) => m !== MetodoPago.FIADO) as [
+  string,
+  ...string[],
+];
+
 export const registrarAbonoSchema = z.object({
   monto: z.number().positive("El monto debe ser mayor a 0"),
+  metodoPago: z.enum(METODOS_ABONO),
   descripcion: z.string().optional(),
 });
 

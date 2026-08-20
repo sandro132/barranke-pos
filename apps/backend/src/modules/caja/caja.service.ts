@@ -23,6 +23,7 @@ export async function abrirCaja(usuarioId: string, data: AbrirCajaInput) {
         cajaId: caja.id,
         tipo: TipoMovimientoCaja.APERTURA,
         monto: data.montoInicial,
+        metodoPago: MetodoPago.EFECTIVO,
         descripcion: "Apertura de caja",
         usuarioId,
       },
@@ -43,11 +44,55 @@ export async function registrarMovimiento(usuarioId: string, data: RegistrarMovi
       cajaId: caja.id,
       tipo: data.tipo,
       monto: data.monto,
+      metodoPago: data.metodoPago,
       descripcion: data.descripcion,
       usuarioId,
     },
     include: { usuario: { select: { id: true, nombre: true } } },
   });
+}
+
+/**
+ * Corrige un ingreso/gasto manual que se registró mal (monto, método o
+ * descripción equivocada). Solo se pueden editar movimientos tipo INGRESO
+ * o GASTO — nunca APERTURA/CIERRE/VENTA, que están atados a otros flujos
+ * (una venta se corrige anulándola o cambiando su método, no editando el
+ * movimiento de caja directamente). Y solo mientras la caja siga abierta:
+ * una vez cerrada, ya se hizo el arqueo con esos números — cambiarlos
+ * después dejaría el historial descuadrado con lo que de verdad se contó.
+ */
+export async function actualizarMovimiento(id: string, data: Partial<RegistrarMovimientoInput>) {
+  const movimiento = await prisma.movimientoCaja.findUnique({ where: { id }, include: { caja: true } });
+  if (!movimiento) {
+    throw new AppError("Movimiento no encontrado", 404);
+  }
+  if (movimiento.tipo !== TipoMovimientoCaja.INGRESO && movimiento.tipo !== TipoMovimientoCaja.GASTO) {
+    throw new AppError("Solo se pueden editar ingresos o gastos registrados a mano", 400);
+  }
+  if (!movimiento.caja.abierta) {
+    throw new AppError("Esta caja ya está cerrada; no se puede editar", 400);
+  }
+
+  return prisma.movimientoCaja.update({
+    where: { id },
+    data,
+    include: { usuario: { select: { id: true, nombre: true } } },
+  });
+}
+
+export async function eliminarMovimiento(id: string) {
+  const movimiento = await prisma.movimientoCaja.findUnique({ where: { id }, include: { caja: true } });
+  if (!movimiento) {
+    throw new AppError("Movimiento no encontrado", 404);
+  }
+  if (movimiento.tipo !== TipoMovimientoCaja.INGRESO && movimiento.tipo !== TipoMovimientoCaja.GASTO) {
+    throw new AppError("Solo se pueden eliminar ingresos o gastos registrados a mano", 400);
+  }
+  if (!movimiento.caja.abierta) {
+    throw new AppError("Esta caja ya está cerrada; no se puede eliminar", 400);
+  }
+
+  await prisma.movimientoCaja.delete({ where: { id } });
 }
 
 /**
@@ -71,13 +116,23 @@ async function construirResumen(cajaId: string, montoInicial: unknown, fechaAper
     }),
   ]);
 
-  const ingresos = movimientos
-    .filter((m) => m.tipo === TipoMovimientoCaja.INGRESO)
-    .reduce((sum, m) => sum + Number(m.monto), 0);
+  const ingresosPorMetodo: Record<string, number> = {};
+  for (const m of movimientos.filter((m) => m.tipo === TipoMovimientoCaja.INGRESO)) {
+    const metodo = m.metodoPago ?? "SIN_METODO";
+    ingresosPorMetodo[metodo] = (ingresosPorMetodo[metodo] ?? 0) + Number(m.monto);
+  }
+  const ingresos = Object.values(ingresosPorMetodo).reduce((sum, v) => sum + v, 0);
+  // Solo lo que de verdad fue en EFECTIVO afecta lo que debe haber en la
+  // caja física — un ingreso por Nequi no mete plata física a la caja.
+  const ingresosEfectivo = ingresosPorMetodo[MetodoPago.EFECTIVO] ?? 0;
 
-  const gastos = movimientos
-    .filter((m) => m.tipo === TipoMovimientoCaja.GASTO)
-    .reduce((sum, m) => sum + Number(m.monto), 0);
+  const gastosPorMetodo: Record<string, number> = {};
+  for (const m of movimientos.filter((m) => m.tipo === TipoMovimientoCaja.GASTO)) {
+    const metodo = m.metodoPago ?? "SIN_METODO";
+    gastosPorMetodo[metodo] = (gastosPorMetodo[metodo] ?? 0) + Number(m.monto);
+  }
+  const gastos = Object.values(gastosPorMetodo).reduce((sum, v) => sum + v, 0);
+  const gastosEfectivo = gastosPorMetodo[MetodoPago.EFECTIVO] ?? 0;
 
   const ventasPorMetodo: Record<string, number> = {};
   for (const venta of ventas) {
@@ -86,14 +141,17 @@ async function construirResumen(cajaId: string, montoInicial: unknown, fechaAper
 
   const ventasEfectivo = ventasPorMetodo[MetodoPago.EFECTIVO] ?? 0;
   const totalVentas = ventas.reduce((sum, v) => sum + Number(v.total), 0);
-  const montoEsperadoEfectivo = Number(montoInicial) + ingresos + ventasEfectivo - gastos;
+  const montoEsperadoEfectivo =
+    Number(montoInicial) + ingresosEfectivo + ventasEfectivo - gastosEfectivo;
 
   return {
     cajaId,
     montoInicial: Number(montoInicial),
     fechaApertura,
     ingresos,
+    ingresosPorMetodo,
     gastos,
+    gastosPorMetodo,
     totalVentas,
     ventasPorMetodo,
     ventasEfectivo,

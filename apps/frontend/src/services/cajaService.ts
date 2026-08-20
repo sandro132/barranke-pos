@@ -4,6 +4,7 @@ export interface MovimientoCajaDTO {
   id: string;
   tipo: "APERTURA" | "CIERRE" | "INGRESO" | "GASTO" | "VENTA";
   monto: number;
+  metodoPago: string | null;
   descripcion: string | null;
   fecha: string;
   usuario: { id: string; nombre: string };
@@ -22,7 +23,9 @@ export interface ResumenCajaDTO {
   montoInicial: number;
   fechaApertura: string;
   ingresos: number;
+  ingresosPorMetodo: Record<string, number>;
   gastos: number;
+  gastosPorMetodo: Record<string, number>;
   totalVentas: number;
   ventasPorMetodo: Record<string, number>;
   ventasEfectivo: number;
@@ -60,8 +63,27 @@ export function abrirCaja(montoInicial: number) {
   return apiRequest("/caja/abrir", { method: "POST", body: { montoInicial } });
 }
 
-export function registrarMovimiento(tipo: "INGRESO" | "GASTO", monto: number, descripcion: string) {
-  return apiRequest("/caja/movimientos", { method: "POST", body: { tipo, monto, descripcion } });
+export function registrarMovimiento(
+  tipo: "INGRESO" | "GASTO",
+  monto: number,
+  metodoPago: string,
+  descripcion: string
+) {
+  return apiRequest("/caja/movimientos", {
+    method: "POST",
+    body: { tipo, monto, metodoPago, descripcion },
+  });
+}
+
+export function actualizarMovimiento(
+  id: string,
+  data: { monto?: number; metodoPago?: string; descripcion?: string }
+) {
+  return apiRequest<MovimientoCajaDTO>(`/caja/movimientos/${id}`, { method: "PATCH", body: data });
+}
+
+export function eliminarMovimiento(id: string) {
+  return apiRequest(`/caja/movimientos/${id}`, { method: "DELETE" });
 }
 
 export function cerrarCaja(montoContado: number) {

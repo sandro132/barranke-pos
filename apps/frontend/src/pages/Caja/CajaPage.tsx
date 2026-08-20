@@ -9,14 +9,25 @@ import { Badge } from "../../components/ui/Badge";
 import { formatoMoneda } from "../../utils/format";
 import {
   abrirCaja,
+  actualizarMovimiento,
   CierreCajaResultadoDTO,
   cerrarCaja,
+  eliminarMovimiento,
+  MovimientoCajaDTO,
   obtenerCajaActual,
   registrarMovimiento,
 } from "../../services/cajaService";
 import { ApiError } from "../../services/api";
 import { anularVenta } from "../../services/ventaService";
 import { CambiarMetodoPagoModal, VentaParaCorregir } from "../../components/CambiarMetodoPagoModal";
+
+const METODOS_MOVIMIENTO = [
+  { valor: "EFECTIVO", etiqueta: "Efectivo" },
+  { valor: "TRANSFERENCIA_BANCOLOMBIA", etiqueta: "Transferencia Bancolombia" },
+  { valor: "NEQUI", etiqueta: "Nequi" },
+  { valor: "DAVIPLATA", etiqueta: "Daviplata" },
+  { valor: "OTRO", etiqueta: "Otro" },
+];
 
 const ETIQUETAS_METODO: Record<string, string> = {
   EFECTIVO: "Efectivo",
@@ -93,6 +104,7 @@ export function CajaPage() {
   const queryClient = useQueryClient();
   const [modalMovimiento, setModalMovimiento] = useState<"INGRESO" | "GASTO" | null>(null);
   const [monto, setMonto] = useState("");
+  const [metodoMovimiento, setMetodoMovimiento] = useState("EFECTIVO");
   const [descripcion, setDescripcion] = useState("");
 
   const [modalCierreAbierto, setModalCierreAbierto] = useState(false);
@@ -112,17 +124,49 @@ export function CajaPage() {
     setMontoContado("");
     setModalMovimiento(null);
     setMonto("");
+    setMetodoMovimiento("EFECTIVO");
     setDescripcion("");
   }, [cajaQuery.data?.cajaId]);
 
   const movimientoMutation = useMutation({
-    mutationFn: () => registrarMovimiento(modalMovimiento!, Number(monto) || 0, descripcion),
+    mutationFn: () => registrarMovimiento(modalMovimiento!, Number(monto) || 0, metodoMovimiento, descripcion),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["caja", "actual"] });
       setModalMovimiento(null);
       setMonto("");
+      setMetodoMovimiento("EFECTIVO");
       setDescripcion("");
     },
+  });
+
+  const [editandoMovimiento, setEditandoMovimiento] = useState<MovimientoCajaDTO | null>(null);
+  const [montoEdicion, setMontoEdicion] = useState("");
+  const [metodoEdicion, setMetodoEdicion] = useState("EFECTIVO");
+  const [descripcionEdicion, setDescripcionEdicion] = useState("");
+
+  function iniciarEdicionMovimiento(m: MovimientoCajaDTO) {
+    setEditandoMovimiento(m);
+    setMontoEdicion(String(m.monto));
+    setMetodoEdicion(m.metodoPago ?? "EFECTIVO");
+    setDescripcionEdicion(m.descripcion ?? "");
+  }
+
+  const actualizarMovimientoMutation = useMutation({
+    mutationFn: () =>
+      actualizarMovimiento(editandoMovimiento!.id, {
+        monto: Number(montoEdicion) || 0,
+        metodoPago: metodoEdicion,
+        descripcion: descripcionEdicion,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["caja", "actual"] });
+      setEditandoMovimiento(null);
+    },
+  });
+
+  const eliminarMovimientoMutation = useMutation({
+    mutationFn: (id: string) => eliminarMovimiento(id),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["caja", "actual"] }),
   });
 
   const cerrarCajaMutation = useMutation({
@@ -175,6 +219,7 @@ export function CajaPage() {
             variant="secondary"
             onClick={() => {
               setMonto("");
+              setMetodoMovimiento("EFECTIVO");
               setDescripcion("");
               setModalMovimiento("INGRESO");
             }}
@@ -185,6 +230,7 @@ export function CajaPage() {
             variant="secondary"
             onClick={() => {
               setMonto("");
+              setMetodoMovimiento("EFECTIVO");
               setDescripcion("");
               setModalMovimiento("GASTO");
             }}
@@ -212,12 +258,22 @@ export function CajaPage() {
           </h2>
           <div className="flex flex-col gap-2">
             <FilaResumen etiqueta="Monto inicial" valor={caja.montoInicial} />
-            <FilaResumen etiqueta="Ingresos manuales" valor={caja.ingresos} />
-            <FilaResumen etiqueta="Gastos" valor={-caja.gastos} />
+            <FilaResumen
+              etiqueta="Ingresos en efectivo"
+              valor={caja.ingresosPorMetodo.EFECTIVO ?? 0}
+            />
+            <FilaResumen etiqueta="Gastos en efectivo" valor={-(caja.gastosPorMetodo.EFECTIVO ?? 0)} />
             <FilaResumen etiqueta="Ventas en efectivo" valor={caja.ventasEfectivo} />
             <div className="border-t border-border pt-2 mt-1">
               <FilaResumen etiqueta="Efectivo esperado" valor={caja.montoEsperadoEfectivo} resaltado />
             </div>
+            {(caja.ingresos > (caja.ingresosPorMetodo.EFECTIVO ?? 0) ||
+              caja.gastos > (caja.gastosPorMetodo.EFECTIVO ?? 0)) && (
+              <p className="text-xs text-ink-muted pt-1">
+                También hubo {formatoMoneda(caja.ingresos)} en ingresos y {formatoMoneda(caja.gastos)} en
+                gastos por otros métodos (no afectan el efectivo esperado).
+              </p>
+            )}
           </div>
         </Card>
 
@@ -245,12 +301,38 @@ export function CajaPage() {
           <div className="flex flex-col gap-2 max-h-48 overflow-y-auto">
             {caja.movimientos.length === 0 && <p className="text-sm text-ink-muted">Sin movimientos</p>}
             {[...caja.movimientos].reverse().map((m) => (
-              <div key={m.id} className="flex items-center justify-between text-sm">
+              <div key={m.id} className="flex items-center justify-between text-sm gap-2">
                 <div>
                   <Badge estado={m.tipo} />
-                  <p className="text-xs text-ink-muted mt-0.5">{m.descripcion}</p>
+                  <p className="text-xs text-ink-muted mt-0.5">
+                    {m.descripcion}
+                    {m.metodoPago && m.tipo !== "APERTURA" ? ` · ${m.metodoPago}` : ""}
+                  </p>
                 </div>
-                <span className="text-ink">{formatoMoneda(m.monto)}</span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-ink">{formatoMoneda(m.monto)}</span>
+                  {(m.tipo === "INGRESO" || m.tipo === "GASTO") && (
+                    <>
+                      <button
+                        onClick={() => iniciarEdicionMovimiento(m)}
+                        className="text-xs text-ink-muted hover:text-ink underline"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (window.confirm(`¿Eliminar este movimiento de ${formatoMoneda(m.monto)}?`)) {
+                            eliminarMovimientoMutation.mutate(m.id);
+                          }
+                        }}
+                        disabled={eliminarMovimientoMutation.isPending}
+                        className="text-xs text-ink-muted hover:text-rock-bright underline"
+                      >
+                        Eliminar
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -334,6 +416,25 @@ export function CajaPage() {
             value={monto}
             onChange={(e) => setMonto(e.target.value)}
           />
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-ink-muted">
+              ¿Con qué se {modalMovimiento === "INGRESO" ? "recibió" : "pagó"}?
+            </label>
+            <select
+              value={metodoMovimiento}
+              onChange={(e) => setMetodoMovimiento(e.target.value)}
+              className="bg-surface border border-border rounded-md px-4 py-3 text-ink focus:border-rock transition-colors"
+            >
+              {METODOS_MOVIMIENTO.map((m) => (
+                <option key={m.valor} value={m.valor}>
+                  {m.etiqueta}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-ink-muted">
+              Solo lo que marques como Efectivo afecta lo que se espera contar en la caja física.
+            </p>
+          </div>
           <Input
             label="Descripción"
             placeholder={modalMovimiento === "INGRESO" ? "Ej: propina en efectivo" : "Ej: compra de hielo"}
@@ -428,6 +529,53 @@ export function CajaPage() {
       </Modal>
 
       <CambiarMetodoPagoModal venta={corrigiendo} onClose={() => setCorrigiendo(null)} />
+
+      <Modal
+        open={!!editandoMovimiento}
+        onClose={() => setEditandoMovimiento(null)}
+        title={`Editar ${editandoMovimiento?.tipo === "INGRESO" ? "ingreso" : "gasto"}`}
+      >
+        <div className="flex flex-col gap-4">
+          <Input
+            type="number"
+            min={0}
+            label="Monto"
+            value={montoEdicion}
+            onChange={(e) => setMontoEdicion(e.target.value)}
+          />
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-ink-muted">Método</label>
+            <select
+              value={metodoEdicion}
+              onChange={(e) => setMetodoEdicion(e.target.value)}
+              className="bg-surface border border-border rounded-md px-4 py-3 text-ink focus:border-rock transition-colors"
+            >
+              {METODOS_MOVIMIENTO.map((m) => (
+                <option key={m.valor} value={m.valor}>
+                  {m.etiqueta}
+                </option>
+              ))}
+            </select>
+          </div>
+          <Input
+            label="Descripción"
+            value={descripcionEdicion}
+            onChange={(e) => setDescripcionEdicion(e.target.value)}
+          />
+          {actualizarMovimientoMutation.isError && (
+            <p className="text-sm text-rock-bright">No se pudo guardar. Intenta de nuevo.</p>
+          )}
+          <Button
+            fullWidth
+            disabled={
+              actualizarMovimientoMutation.isPending || !montoEdicion || !descripcionEdicion.trim()
+            }
+            onClick={() => actualizarMovimientoMutation.mutate()}
+          >
+            {actualizarMovimientoMutation.isPending ? "Guardando..." : "Guardar cambios"}
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }

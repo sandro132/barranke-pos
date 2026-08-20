@@ -8,6 +8,14 @@ import { formatoMoneda } from "../../utils/format";
 import { ApiError } from "../../services/api";
 import { ClienteDTO, obtenerCuentaCliente, registrarAbono } from "../../services/clienteService";
 
+const METODOS_ABONO = [
+  { valor: "EFECTIVO", etiqueta: "Efectivo" },
+  { valor: "TRANSFERENCIA_BANCOLOMBIA", etiqueta: "Transferencia Bancolombia" },
+  { valor: "NEQUI", etiqueta: "Nequi" },
+  { valor: "DAVIPLATA", etiqueta: "Daviplata" },
+  { valor: "OTRO", etiqueta: "Otro" },
+];
+
 export function ClienteCuentaModal({
   cliente,
   onClose,
@@ -17,6 +25,7 @@ export function ClienteCuentaModal({
 }) {
   const queryClient = useQueryClient();
   const [monto, setMonto] = useState("");
+  const [metodoPago, setMetodoPago] = useState("EFECTIVO");
   const [descripcion, setDescripcion] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -27,12 +36,13 @@ export function ClienteCuentaModal({
   });
 
   const abonoMutation = useMutation({
-    mutationFn: () => registrarAbono(cliente!.id, Number(monto), descripcion || undefined),
+    mutationFn: () => registrarAbono(cliente!.id, Number(monto), metodoPago, descripcion || undefined),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cliente", "cuenta", cliente?.id] });
       queryClient.invalidateQueries({ queryKey: ["clientes"] });
       queryClient.invalidateQueries({ queryKey: ["caja", "actual"] });
       setMonto("");
+      setMetodoPago("EFECTIVO");
       setDescripcion("");
     },
     onError: (err) => setError(err instanceof ApiError ? err.message : "No se pudo registrar el abono"),
@@ -62,9 +72,23 @@ export function ClienteCuentaModal({
             value={monto}
             onChange={(e) => setMonto(e.target.value)}
           />
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-ink-muted">¿Con qué pagó?</label>
+            <select
+              value={metodoPago}
+              onChange={(e) => setMetodoPago(e.target.value)}
+              className="bg-surface border border-border rounded-md px-4 py-3 text-ink focus:border-rock transition-colors"
+            >
+              {METODOS_ABONO.map((m) => (
+                <option key={m.valor} value={m.valor}>
+                  {m.etiqueta}
+                </option>
+              ))}
+            </select>
+          </div>
           <Input
             label="Descripción (opcional)"
-            placeholder="Ej: pago parcial en efectivo"
+            placeholder="Ej: pago parcial"
             value={descripcion}
             onChange={(e) => setDescripcion(e.target.value)}
           />

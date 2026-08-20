@@ -370,6 +370,7 @@ export async function cerrarCuenta(
               cajaId: cajaAbierta.id,
               tipo: "VENTA",
               monto: pago.monto,
+              metodoPago: pago.metodoPago,
               descripcion:
                 listaPagos.length > 1
                   ? `Venta — ${cuenta.nombre} (pago ${i + 1}/${listaPagos.length})`

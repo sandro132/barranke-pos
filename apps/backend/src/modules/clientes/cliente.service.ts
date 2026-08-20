@@ -108,7 +108,8 @@ export async function registrarAbono(clienteId: string, usuarioId: string, data:
           cajaId: cajaAbierta.id,
           tipo: "INGRESO",
           monto: data.monto,
-          descripcion: `Abono de ${cliente.nombre}`,
+          metodoPago: data.metodoPago,
+          descripcion: `Abono de ${cliente.nombre} (${data.metodoPago})`,
           usuarioId,
         },
       });

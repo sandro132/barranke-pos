@@ -286,6 +286,13 @@ model MovimientoCaja {
   /// Valores válidos: APERTURA | CIERRE | INGRESO | GASTO | VENTA
   tipo        String
   monto       Decimal
+  // Con qué se pagó/cobró este movimiento (EFECTIVO, NEQUI, etc.) — clave
+  // para el arqueo: solo lo que fue en EFECTIVO de verdad debe esperarse
+  // en la caja física al contar. Antes este campo no existía y TODO
+  // ingreso/gasto se trataba como si fuera efectivo, aunque en realidad
+  // hubiera sido por Nequi o transferencia — eso causaba descuadres.
+  /// Valores válidos: EFECTIVO | TRANSFERENCIA_BANCOLOMBIA | NEQUI | DAVIPLATA | TARJETA | OTRO
+  metodoPago  String?
   descripcion String?
   usuarioId   String
   usuario     Usuario  @relation(fields: [usuarioId], references: [id])

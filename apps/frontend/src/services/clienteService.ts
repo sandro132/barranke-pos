@@ -47,9 +47,9 @@ export function obtenerCuentaCliente(id: string) {
   return apiRequest<CuentaClienteDTO>(`/clientes/${id}/cuenta`);
 }
 
-export function registrarAbono(id: string, monto: number, descripcion?: string) {
+export function registrarAbono(id: string, monto: number, metodoPago: string, descripcion?: string) {
   return apiRequest<CuentaClienteDTO>(`/clientes/${id}/abonos`, {
     method: "POST",
-    body: { monto, descripcion },
+    body: { monto, metodoPago, descripcion },
   });
 }
