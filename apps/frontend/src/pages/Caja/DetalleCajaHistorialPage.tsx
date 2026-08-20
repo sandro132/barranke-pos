@@ -38,6 +38,10 @@ export function DetalleCajaHistorialPage() {
       queryClient.invalidateQueries({ queryKey: ["caja", "historial", id] });
       queryClient.invalidateQueries({ predicate: (q) => q.queryKey[0] === "reportes" });
       queryClient.invalidateQueries({ predicate: (q) => q.queryKey[0] === "clientes" });
+      queryClient.invalidateQueries({ predicate: (q) => q.queryKey[0] === "productos" });
+      queryClient.invalidateQueries({ predicate: (q) => q.queryKey[0] === "ingredientes" });
+      queryClient.invalidateQueries({ predicate: (q) => q.queryKey[0] === "cuentas" });
+      queryClient.invalidateQueries({ predicate: (q) => q.queryKey[0] === "cuenta" });
     },
   });
 

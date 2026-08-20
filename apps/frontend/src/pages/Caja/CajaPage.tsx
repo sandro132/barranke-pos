@@ -185,6 +185,10 @@ export function CajaPage() {
       queryClient.invalidateQueries({ queryKey: ["caja", "actual"] });
       queryClient.invalidateQueries({ predicate: (q) => q.queryKey[0] === "reportes" });
       queryClient.invalidateQueries({ predicate: (q) => q.queryKey[0] === "clientes" });
+      queryClient.invalidateQueries({ predicate: (q) => q.queryKey[0] === "productos" });
+      queryClient.invalidateQueries({ predicate: (q) => q.queryKey[0] === "ingredientes" });
+      queryClient.invalidateQueries({ predicate: (q) => q.queryKey[0] === "cuentas" });
+      queryClient.invalidateQueries({ predicate: (q) => q.queryKey[0] === "cuenta" });
     },
   });
 
