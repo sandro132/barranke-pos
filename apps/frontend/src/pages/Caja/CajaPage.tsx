@@ -268,6 +268,10 @@ export function CajaPage() {
             />
             <FilaResumen etiqueta="Gastos en efectivo" valor={-(caja.gastosPorMetodo.EFECTIVO ?? 0)} />
             <FilaResumen etiqueta="Ventas en efectivo" valor={caja.ventasEfectivo} />
+            <FilaResumen
+              etiqueta="Propinas en efectivo"
+              valor={caja.propinasPorMetodo.EFECTIVO ?? 0}
+            />
             <div className="border-t border-border pt-2 mt-1">
               <FilaResumen etiqueta="Efectivo esperado" valor={caja.montoEsperadoEfectivo} resaltado />
             </div>
@@ -276,6 +280,13 @@ export function CajaPage() {
               <p className="text-xs text-ink-muted pt-1">
                 También hubo {formatoMoneda(caja.ingresos)} en ingresos y {formatoMoneda(caja.gastos)} en
                 gastos por otros métodos (no afectan el efectivo esperado).
+              </p>
+            )}
+            {caja.propinas > 0 && (
+              <p className="text-xs text-ink-muted">
+                Total de propinas del día (todos los métodos):{" "}
+                <span className="text-ink font-medium">{formatoMoneda(caja.propinas)}</span> — recuerda
+                que no es venta del negocio, es para el personal.
               </p>
             )}
           </div>
@@ -315,7 +326,7 @@ export function CajaPage() {
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <span className="text-ink">{formatoMoneda(m.monto)}</span>
-                  {(m.tipo === "INGRESO" || m.tipo === "GASTO") && (
+                  {(m.tipo === "INGRESO" || m.tipo === "GASTO" || m.tipo === "PROPINA") && (
                     <>
                       <button
                         onClick={() => iniciarEdicionMovimiento(m)}
@@ -537,7 +548,13 @@ export function CajaPage() {
       <Modal
         open={!!editandoMovimiento}
         onClose={() => setEditandoMovimiento(null)}
-        title={`Editar ${editandoMovimiento?.tipo === "INGRESO" ? "ingreso" : "gasto"}`}
+        title={`Editar ${
+          editandoMovimiento?.tipo === "INGRESO"
+            ? "ingreso"
+            : editandoMovimiento?.tipo === "PROPINA"
+              ? "propina"
+              : "gasto"
+        }`}
       >
         <div className="flex flex-col gap-4">
           <Input

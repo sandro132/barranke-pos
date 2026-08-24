@@ -53,6 +53,8 @@ export function CuentaDetallePage() {
   const [metodoPago, setMetodoPago] = useState("EFECTIVO");
   const [clienteIdFiado, setClienteIdFiado] = useState("");
   const [descuento, setDescuento] = useState("");
+  const [propina, setPropina] = useState("");
+  const [metodoPropina, setMetodoPropina] = useState("EFECTIVO");
   const [dividiendo, setDividiendo] = useState(false);
   const [partes, setPartes] = useState<ParteDividida[]>([]);
 
@@ -84,8 +86,23 @@ export function CuentaDetallePage() {
   }
 
   const cerrarMutation = useMutation({
-    mutationFn: (vars: { metodo?: string; pagos?: PagoDividido[]; clienteId?: string; descuento?: number }) =>
-      cerrarCuenta(id!, vars.metodo, vars.pagos, vars.clienteId, vars.descuento),
+    mutationFn: (vars: {
+      metodo?: string;
+      pagos?: PagoDividido[];
+      clienteId?: string;
+      descuento?: number;
+      propina?: number;
+      metodoPropina?: string;
+    }) =>
+      cerrarCuenta(
+        id!,
+        vars.metodo,
+        vars.pagos,
+        vars.clienteId,
+        vars.descuento,
+        vars.propina,
+        vars.metodoPropina
+      ),
     // Igual que al enviar un pedido: si falla por conexión, reintenta solo
     // antes de rendirse — cerrar y cobrar una cuenta es aún más importante
     // no perderlo por un corte breve de wifi.
@@ -163,12 +180,16 @@ export function CuentaDetallePage() {
           clienteId: p.metodoPago === "FIADO" ? p.clienteId : undefined,
         })),
         descuento: Number(descuento) || undefined,
+        propina: Number(propina) || undefined,
+        metodoPropina,
       });
     } else {
       cerrarMutation.mutate({
         metodo: metodoPago,
         clienteId: metodoPago === "FIADO" ? clienteIdFiado : undefined,
         descuento: Number(descuento) || undefined,
+        propina: Number(propina) || undefined,
+        metodoPropina,
       });
     }
   }
@@ -257,6 +278,8 @@ export function CuentaDetallePage() {
             setMetodoPago("EFECTIVO");
             setClienteIdFiado("");
             setDescuento("");
+            setPropina("");
+            setMetodoPropina("EFECTIVO");
             if (cuenta.totalConsumido === 0) {
               cerrarMutation.mutate({});
             } else {
@@ -351,6 +374,44 @@ export function CuentaDetallePage() {
             <span className="font-display text-2xl font-bold text-ink">
               {formatoMoneda(totalConDescuento)}
             </span>
+          </div>
+
+          <div className="border-t border-border pt-3 flex flex-col gap-3">
+            <Input
+              type="number"
+              min={0}
+              label="Propina (opcional, en pesos)"
+              placeholder="0"
+              value={propina}
+              onChange={(e) => setPropina(e.target.value)}
+            />
+            {Number(propina) > 0 && (
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-medium text-ink-muted">¿Con qué se pagó la propina?</label>
+                <select
+                  value={metodoPropina}
+                  onChange={(e) => setMetodoPropina(e.target.value)}
+                  className="bg-surface border border-border rounded-md px-4 py-3 text-ink focus:border-rock transition-colors"
+                >
+                  {METODOS_PAGO.filter((m) => m.valor !== "FIADO").map((m) => (
+                    <option key={m.valor} value={m.valor}>
+                      {m.etiqueta}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-ink-muted">
+                  La propina no cuenta como venta del negocio — es aparte, solo para que cuadre la caja.
+                </p>
+              </div>
+            )}
+            {Number(propina) > 0 && (
+              <div className="flex items-center justify-between">
+                <span className="text-ink-muted text-sm">Total a cobrar (con propina)</span>
+                <span className="font-display text-xl font-bold text-rock-bright">
+                  {formatoMoneda(totalConDescuento + Number(propina))}
+                </span>
+              </div>
+            )}
           </div>
 
           <button

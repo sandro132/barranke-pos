@@ -87,6 +87,10 @@ export enum TipoMovimientoCaja {
   INGRESO = "INGRESO",
   GASTO = "GASTO",
   VENTA = "VENTA",
+  // Aparte de VENTA a propósito: la propina no es ingreso del negocio (no
+  // cuenta como ganancia ni en los reportes de ventas), aunque si es en
+  // efectivo sí afecta lo que debe haber físicamente en la caja.
+  PROPINA = "PROPINA",
 }
 
 export enum TipoPromocion {

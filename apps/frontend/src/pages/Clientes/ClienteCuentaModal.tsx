@@ -113,13 +113,23 @@ export function ClienteCuentaModal({
               <p className="text-sm text-ink-muted">Sin movimientos todavía.</p>
             )}
             {cuentaQuery.data?.movimientos.map((m) => (
-              <div key={m.id} className="flex items-center justify-between text-sm">
+              <div key={m.id} className="flex items-center justify-between text-sm gap-2">
                 <div>
                   <Badge estado={m.tipo} />
                   <p className="text-xs text-ink-muted mt-0.5">
                     {m.descripcion} ·{" "}
                     {new Date(m.fecha).toLocaleDateString("es-CO", { dateStyle: "short" })}
                   </p>
+                  {m.ventaId && (
+                    <a
+                      href={`/ventas/${m.ventaId}/ticket`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs text-rock-bright hover:underline"
+                    >
+                      Ver detalle
+                    </a>
+                  )}
                 </div>
                 <span className={m.tipo === "CARGO" ? "text-ink" : "text-green-400"}>
                   {m.tipo === "CARGO" ? "+" : "-"}

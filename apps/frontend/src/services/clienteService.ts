@@ -20,6 +20,7 @@ export interface MovimientoCuentaDTO {
   monto: number;
   descripcion: string | null;
   fecha: string;
+  ventaId: string | null;
 }
 
 export interface CuentaClienteDTO {

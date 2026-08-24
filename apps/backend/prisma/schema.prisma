@@ -283,7 +283,7 @@ model MovimientoCaja {
   id     String @id @default(cuid())
   cajaId String
   caja   Caja   @relation(fields: [cajaId], references: [id])
-  /// Valores válidos: APERTURA | CIERRE | INGRESO | GASTO | VENTA
+  /// Valores válidos: APERTURA | CIERRE | INGRESO | GASTO | VENTA | PROPINA
   tipo        String
   monto       Decimal
   // Con qué se pagó/cobró este movimiento (EFECTIVO, NEQUI, etc.) — clave

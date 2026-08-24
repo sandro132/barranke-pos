@@ -2,7 +2,7 @@ import { apiRequest } from "./api";
 
 export interface MovimientoCajaDTO {
   id: string;
-  tipo: "APERTURA" | "CIERRE" | "INGRESO" | "GASTO" | "VENTA";
+  tipo: "APERTURA" | "CIERRE" | "INGRESO" | "GASTO" | "VENTA" | "PROPINA";
   monto: number;
   metodoPago: string | null;
   descripcion: string | null;
@@ -26,6 +26,8 @@ export interface ResumenCajaDTO {
   ingresosPorMetodo: Record<string, number>;
   gastos: number;
   gastosPorMetodo: Record<string, number>;
+  propinas: number;
+  propinasPorMetodo: Record<string, number>;
   totalVentas: number;
   ventasPorMetodo: Record<string, number>;
   ventasEfectivo: number;

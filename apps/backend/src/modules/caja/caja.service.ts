@@ -66,8 +66,12 @@ export async function actualizarMovimiento(id: string, data: Partial<RegistrarMo
   if (!movimiento) {
     throw new AppError("Movimiento no encontrado", 404);
   }
-  if (movimiento.tipo !== TipoMovimientoCaja.INGRESO && movimiento.tipo !== TipoMovimientoCaja.GASTO) {
-    throw new AppError("Solo se pueden editar ingresos o gastos registrados a mano", 400);
+  if (
+    movimiento.tipo !== TipoMovimientoCaja.INGRESO &&
+    movimiento.tipo !== TipoMovimientoCaja.GASTO &&
+    movimiento.tipo !== TipoMovimientoCaja.PROPINA
+  ) {
+    throw new AppError("Solo se pueden editar ingresos, gastos o propinas registradas a mano", 400);
   }
   if (!movimiento.caja.abierta) {
     throw new AppError("Esta caja ya está cerrada; no se puede editar", 400);
@@ -85,8 +89,12 @@ export async function eliminarMovimiento(id: string) {
   if (!movimiento) {
     throw new AppError("Movimiento no encontrado", 404);
   }
-  if (movimiento.tipo !== TipoMovimientoCaja.INGRESO && movimiento.tipo !== TipoMovimientoCaja.GASTO) {
-    throw new AppError("Solo se pueden eliminar ingresos o gastos registrados a mano", 400);
+  if (
+    movimiento.tipo !== TipoMovimientoCaja.INGRESO &&
+    movimiento.tipo !== TipoMovimientoCaja.GASTO &&
+    movimiento.tipo !== TipoMovimientoCaja.PROPINA
+  ) {
+    throw new AppError("Solo se pueden eliminar ingresos, gastos o propinas registradas a mano", 400);
   }
   if (!movimiento.caja.abierta) {
     throw new AppError("Esta caja ya está cerrada; no se puede eliminar", 400);
@@ -134,6 +142,17 @@ async function construirResumen(cajaId: string, montoInicial: unknown, fechaAper
   const gastos = Object.values(gastosPorMetodo).reduce((sum, v) => sum + v, 0);
   const gastosEfectivo = gastosPorMetodo[MetodoPago.EFECTIVO] ?? 0;
 
+  const propinasPorMetodo: Record<string, number> = {};
+  for (const m of movimientos.filter((m) => m.tipo === TipoMovimientoCaja.PROPINA)) {
+    const metodo = m.metodoPago ?? "SIN_METODO";
+    propinasPorMetodo[metodo] = (propinasPorMetodo[metodo] ?? 0) + Number(m.monto);
+  }
+  const propinas = Object.values(propinasPorMetodo).reduce((sum, v) => sum + v, 0);
+  // Si la propina fue en efectivo, sí hay que esperarla en la caja física
+  // (aunque no es ingreso del negocio) — por eso entra al cálculo, pero
+  // nunca a "ingresos" ni a los reportes de ventas/ganancias.
+  const propinasEfectivo = propinasPorMetodo[MetodoPago.EFECTIVO] ?? 0;
+
   const ventasPorMetodo: Record<string, number> = {};
   for (const venta of ventas) {
     ventasPorMetodo[venta.metodoPago] = (ventasPorMetodo[venta.metodoPago] ?? 0) + Number(venta.total);
@@ -142,7 +161,7 @@ async function construirResumen(cajaId: string, montoInicial: unknown, fechaAper
   const ventasEfectivo = ventasPorMetodo[MetodoPago.EFECTIVO] ?? 0;
   const totalVentas = ventas.reduce((sum, v) => sum + Number(v.total), 0);
   const montoEsperadoEfectivo =
-    Number(montoInicial) + ingresosEfectivo + ventasEfectivo - gastosEfectivo;
+    Number(montoInicial) + ingresosEfectivo + ventasEfectivo + propinasEfectivo - gastosEfectivo;
 
   return {
     cajaId,
@@ -152,6 +171,8 @@ async function construirResumen(cajaId: string, montoInicial: unknown, fechaAper
     ingresosPorMetodo,
     gastos,
     gastosPorMetodo,
+    propinas,
+    propinasPorMetodo,
     totalVentas,
     ventasPorMetodo,
     ventasEfectivo,

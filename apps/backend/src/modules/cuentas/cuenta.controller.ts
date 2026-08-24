@@ -33,14 +33,18 @@ export const actualizarHandler = asyncHandler(async (req: Request, res: Response
 
 export const cerrarHandler = asyncHandler(async (req: Request, res: Response) => {
   if (!req.user) throw new AppError("No autenticado", 401);
-  const { metodoPago, pagos, clienteId, descuento } = cerrarCuentaSchema.parse(req.body);
+  const { metodoPago, pagos, clienteId, descuento, propina, metodoPropina } = cerrarCuentaSchema.parse(
+    req.body
+  );
   const resultado = await cuentaService.cerrarCuenta(
     req.params.id,
     req.user.userId,
     metodoPago,
     pagos,
     clienteId,
-    descuento
+    descuento,
+    propina,
+    metodoPropina
   );
   res.json(resultado);
 });

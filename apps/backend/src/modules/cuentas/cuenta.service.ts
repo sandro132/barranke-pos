@@ -271,7 +271,9 @@ export async function cerrarCuenta(
   metodoPago?: string,
   pagos?: { metodoPago: string; monto: number; clienteId?: string }[],
   clienteId?: string,
-  descuento?: number
+  descuento?: number,
+  propina?: number,
+  metodoPropina?: string
 ) {
   const cuenta = await prisma.cuenta.findUnique({ where: { id } });
 
@@ -327,9 +329,9 @@ export async function cerrarCuenta(
 
   const { cuentaActualizada, ventas } = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     const ventasCreadas = [];
+    const cajaAbierta = await tx.caja.findFirst({ where: { abierta: true } });
 
     if (total > 0) {
-      const cajaAbierta = await tx.caja.findFirst({ where: { abierta: true } });
       const listaPagos = pagos ?? [{ metodoPago: metodoPago!, monto: total, clienteId }];
       // El descuento completo se le atribuye al primer pago (o al único pago,
       // si no se dividió la cuenta) — es solo para que quede registrado en
@@ -385,6 +387,23 @@ export async function cerrarCuenta(
       await tx.pedido.updateMany({
         where: { id: { in: pedidosDeSesion.map((p) => p.id) } },
         data: { ventaId: ventasCreadas[0].id },
+      });
+    }
+
+    // La propina se registra aparte de la venta: no es ingreso del negocio
+    // (no cuenta en reportes de ventas/ganancias), pero si es en efectivo
+    // sí hay que esperarla en la caja física — por eso queda como su propio
+    // tipo de movimiento, nunca mezclada con "VENTA".
+    if (propina && propina > 0 && cajaAbierta) {
+      await tx.movimientoCaja.create({
+        data: {
+          cajaId: cajaAbierta.id,
+          tipo: "PROPINA",
+          monto: propina,
+          metodoPago: metodoPropina ?? metodoPago ?? "EFECTIVO",
+          descripcion: `Propina — ${cuenta.nombre}`,
+          usuarioId,
+        },
       });
     }
 

@@ -1,6 +1,11 @@
 import { z } from "zod";
 import { MetodoPago } from "@barranke/shared";
 
+const METODOS_PROPINA = Object.values(MetodoPago).filter((m) => m !== MetodoPago.FIADO) as [
+  string,
+  ...string[],
+];
+
 export const abrirCuentaSchema = z.object({
   nombre: z.string().min(1, "El nombre de la cuenta es requerido").max(200),
   espacioId: z.string().optional(),
@@ -26,6 +31,12 @@ export const cerrarCuentaSchema = z.object({
   // cliente frecuente). El mesero calcula el % a mano y pone el monto final
   // — mantiene la lógica del backend simple y a prueba de errores de redondeo.
   descuento: z.number().nonnegative().optional(),
+  // La propina es aparte del consumo: no baja ni sube el total de la
+  // cuenta, es plata extra que se cobra encima. Puede pagarse con un
+  // método distinto al de la cuenta (ej. cuenta por transferencia, propina
+  // en efectivo).
+  propina: z.number().nonnegative().optional(),
+  metodoPropina: z.enum(METODOS_PROPINA).optional(),
   pagos: z
     .array(
       z.object({
