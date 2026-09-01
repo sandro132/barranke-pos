@@ -1,5 +1,5 @@
 import { TableroProduccion } from "../../components/production/TableroProduccion";
-import { listarParaBarra } from "../../services/pedidoService";
+import { listarParaBarra, terminarTodosBarra } from "../../services/pedidoService";
 
 export function BarraPage() {
   return (
@@ -8,6 +8,7 @@ export function BarraPage() {
       area="BARRA"
       queryKey={["pedidos", "barra"]}
       queryFn={listarParaBarra}
+      terminarTodosFn={terminarTodosBarra}
     />
   );
 }

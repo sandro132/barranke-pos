@@ -243,6 +243,41 @@ export async function listarParaBarra() {
 }
 
 /**
+ * Marca como ENTREGADO todos los ítems pendientes/en preparación/listos de
+ * un área de un golpe — para cuando cocina o barra dejan de usarse por un
+ * tiempo y se acumulan pedidos viejos que ya no tiene sentido ir marcando
+ * uno por uno. No cancela nada (no revierte inventario ni nada de eso):
+ * simplemente los da por entregados y los saca del tablero.
+ */
+export async function terminarTodosPendientes(area: string) {
+  const items = await prisma.itemPedido.findMany({
+    where: {
+      areaPreparacion: area,
+      estado: { in: [EstadoPedido.PENDIENTE, EstadoPedido.PREPARANDO, EstadoPedido.LISTO] },
+    },
+    select: { id: true, pedidoId: true },
+  });
+
+  if (items.length === 0) {
+    return { actualizados: 0 };
+  }
+
+  await prisma.itemPedido.updateMany({
+    where: { id: { in: items.map((i) => i.id) } },
+    data: { estado: EstadoPedido.ENTREGADO },
+  });
+
+  const pedidoIds = [...new Set(items.map((i) => i.pedidoId))] as string[];
+  for (const pedidoId of pedidoIds) {
+    await sincronizarEstadoPedido(pedidoId);
+  }
+
+  getIO().emit(SOCKET_EVENTS.PEDIDO_ITEM_ACTUALIZADO, { masivo: true, area });
+
+  return { actualizados: items.length };
+}
+
+/**
  * Actualiza el estado de UN ítem (ej. cocina marca "Preparando" -> "Listo"),
  * y luego sincroniza el estado general del pedido según el estado de todos sus ítems.
  */

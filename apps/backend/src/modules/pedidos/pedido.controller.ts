@@ -26,6 +26,16 @@ export const listarBarraHandler = asyncHandler(async (_req: Request, res: Respon
   res.json(items);
 });
 
+export const terminarTodosCocinaHandler = asyncHandler(async (_req: Request, res: Response) => {
+  const resultado = await pedidoService.terminarTodosPendientes("COCINA");
+  res.json(resultado);
+});
+
+export const terminarTodosBarraHandler = asyncHandler(async (_req: Request, res: Response) => {
+  const resultado = await pedidoService.terminarTodosPendientes("BARRA");
+  res.json(resultado);
+});
+
 export const actualizarEstadoItemHandler = asyncHandler(async (req: Request, res: Response) => {
   const { estado } = actualizarEstadoItemSchema.parse(req.body);
   const item = await pedidoService.actualizarEstadoItem(req.params.itemId, estado);

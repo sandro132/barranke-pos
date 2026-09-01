@@ -16,11 +16,13 @@ export function TableroProduccion({
   area,
   queryKey,
   queryFn,
+  terminarTodosFn,
 }: {
   titulo: string;
   area: "COCINA" | "BARRA";
   queryKey: string[];
   queryFn: () => Promise<ItemPedidoDTO[]>;
+  terminarTodosFn: () => Promise<{ actualizados: number }>;
 }) {
   const queryClient = useQueryClient();
 
@@ -39,6 +41,14 @@ export function TableroProduccion({
     },
   });
 
+  const terminarTodosMutation = useMutation({
+    mutationFn: terminarTodosFn,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey });
+      queryClient.invalidateQueries({ queryKey: ["cuentas"] });
+    },
+  });
+
   return (
     <div className="p-8 h-screen flex flex-col">
       <header className="mb-6 flex items-start justify-between flex-wrap gap-3">
@@ -48,11 +58,30 @@ export function TableroProduccion({
           </h1>
           <p className="text-ink-muted text-sm mt-1">Se actualiza solo, en tiempo real</p>
         </div>
-        {!permisoConcedido && (
-          <Button variant="secondary" onClick={activarAlertas}>
-            🔔 Activar alertas de sonido
-          </Button>
-        )}
+        <div className="flex gap-2 flex-wrap">
+          {!permisoConcedido && (
+            <Button variant="secondary" onClick={activarAlertas}>
+              🔔 Activar alertas de sonido
+            </Button>
+          )}
+          {(data?.length ?? 0) > 0 && (
+            <Button
+              variant="secondary"
+              disabled={terminarTodosMutation.isPending}
+              onClick={() => {
+                if (
+                  window.confirm(
+                    `¿Marcar como entregados todos los ${data?.length} pedidos pendientes de ${titulo}? No se puede deshacer uno por uno después.`
+                  )
+                ) {
+                  terminarTodosMutation.mutate();
+                }
+              }}
+            >
+              {terminarTodosMutation.isPending ? "Terminando..." : "Terminar todos"}
+            </Button>
+          )}
+        </div>
       </header>
 
       {isLoading ? (

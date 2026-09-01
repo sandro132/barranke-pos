@@ -43,6 +43,14 @@ export function listarParaBarra() {
   return apiRequest<ItemPedidoDTO[]>("/pedidos/barra");
 }
 
+export function terminarTodosCocina() {
+  return apiRequest<{ actualizados: number }>("/pedidos/cocina/terminar-todos", { method: "POST" });
+}
+
+export function terminarTodosBarra() {
+  return apiRequest<{ actualizados: number }>("/pedidos/barra/terminar-todos", { method: "POST" });
+}
+
 export function actualizarEstadoItem(itemId: string, estado: string) {
   return apiRequest<ItemPedidoDTO>(`/pedidos/items/${itemId}/estado`, {
     method: "PATCH",

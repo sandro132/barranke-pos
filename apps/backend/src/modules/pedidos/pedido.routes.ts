@@ -9,6 +9,8 @@ router.use(requireAuth);
 router.post("/", requireRole("MESERO"), pedidoController.crearHandler);
 router.get("/cocina", requireRole("COCINA"), pedidoController.listarCocinaHandler);
 router.get("/barra", requireRole("BAR"), pedidoController.listarBarraHandler);
+router.post("/cocina/terminar-todos", requireRole("COCINA"), pedidoController.terminarTodosCocinaHandler);
+router.post("/barra/terminar-todos", requireRole("BAR"), pedidoController.terminarTodosBarraHandler);
 router.get("/cuenta/:cuentaId", requireRole("MESERO"), pedidoController.listarPorCuentaHandler);
 router.post(
   "/cuenta/:cuentaId/repetir-ultima-ronda",

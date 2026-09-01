@@ -1,5 +1,5 @@
 import { TableroProduccion } from "../../components/production/TableroProduccion";
-import { listarParaCocina } from "../../services/pedidoService";
+import { listarParaCocina, terminarTodosCocina } from "../../services/pedidoService";
 
 export function CocinaPage() {
   return (
@@ -8,6 +8,7 @@ export function CocinaPage() {
       area="COCINA"
       queryKey={["pedidos", "cocina"]}
       queryFn={listarParaCocina}
+      terminarTodosFn={terminarTodosCocina}
     />
   );
 }
